@@ -220,3 +220,296 @@ Conventional Commits: Escribir mensajes atómicos con prefijos claros (feat:, fi
 Commits pequeños y atómicos: Cada commit representa un solo cambio lógico coherente, facilitando la revisión y eventuales reversiones (git revert).
 
 Pull Request descriptivo y autocontenido: Incluir resumen de cambios, capturas o grabaciones de UI si aplica, checklist de calidad (linting y tests pasando) y pasos para que el revisor pueda probarlo localmente.
+
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+Parte 4 — Code Review y Refactorización
+
+Fragmento A — Flutter
+
+Análisis de problemas detectados
+
+Uso innecesario de StatefulWidget y setState: El widget gestiona manualmente estados de carga (_loading), error (_error) y datos (_users), mezclando la lógica de presentación con la interfaz visual.
+
+Lógica de red dentro de initState(): Realizar llamadas asíncronas directas dentro de initState() dificulta la testeabilidad unitaria y el manejo limpio del ciclo de vida.
+
+Falta de manejo robusto de errores: Se captura el error de forma genérica asignando un mensaje estático sin proporcionar una opción de reintento (retry) a la interfaz.
+
+Ausencia de Riverpod y AsyncValue: Al no aprovechar AsyncValue y ConsumerWidget, se desperdicia la capacidad de simplificar el renderizado reactivo según el estado de la petición.
+
+Código refactorizado con Riverpod
+
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+
+// 1. Modelo inmutable
+@immutable
+class Product {
+  final int id;
+  final String title;
+  final double price;
+
+  const Product({
+    required this.id,
+    required this.title,
+    required this.price,
+  });
+
+  factory Product.fromJson(Map<String, dynamic> json) {
+    return Product(
+      id: json['id'] as int,
+      title: json['title'] as String,
+      price: (json['price'] as num).toDouble(),
+    );
+  }
+}
+
+// 2. Repositorio desacoplado
+class ProductsRepository {
+  final http.Client _client;
+
+  ProductsRepository({http.Client? client}) : _client = client ?? http.Client();
+
+  Future<List<Product>> getProducts() async {
+    final uri = Uri.parse('https://dummyjson.com/products');
+    final response = await _client.get(uri);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final productsList = data['products'] as List<dynamic>;
+      return productsList
+          .map((item) => Product.fromJson(item as Map<String, dynamic>))
+          .toList();
+    } else {
+      throw Exception('Error al cargar productos: ${response.statusCode}');
+    }
+  }
+}
+
+// 3. Providers de Riverpod
+final productsRepositoryProvider = Provider<ProductsRepository>((ref) {
+  return ProductsRepository();
+});
+
+final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
+  final repository = ref.watch(productsRepositoryProvider);
+  return repository.getProducts();
+});
+
+class CartNotifier extends Notifier<List<Product>> {
+  @override
+  List<Product> build() => const [];
+
+  void add(Product product) {
+    state = [...state, product]; // Inmutable
+  }
+}
+
+final cartProvider = NotifierProvider<CartNotifier, List<Product>>(CartNotifier.new);
+
+// 4. Vista reactiva y limpia
+class ProductsScreen extends ConsumerWidget {
+  const ProductsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final productsAsync = ref.watch(productsProvider);
+    final cart = ref.watch(cartProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Productos (${cart.length})'),
+      ),
+      body: productsAsync.when(
+        data: (products) {
+          if (products.isEmpty) {
+            return const Center(child: Text('No hay productos disponibles.'));
+          }
+
+          return ListView.builder(
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return ListTile(
+                title: Text(product.title),
+                subtitle: Text('\$${product.price.toStringAsFixed(2)}'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.add_shopping_cart),
+                  onPressed: () {
+                    ref.read(cartProvider.notifier).add(product);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${product.title} agregado al carrito'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Error: $error'),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(productsProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Reintentar'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Fragmento B — Angular
+
+
+Análisis de problemas detectados
+
+Fuga de memoria (Memory Leak): Se suscribe manualmente a un Observable dentro de ngOnInit() guardando el resultado en una variable local sin cancelar la suscripción al destruir el componente (falta ngOnDestroy o takeUntilDestroyed).
+
+Lógica imperativa en lugar de reactiva: Asignar el valor a una propiedad interna de la clase deshace los beneficios de los flujos asíncronos reactivos en la plantilla.
+
+Modernización pendiente (Signals / Async Pipe): En versiones modernas de Angular (16+), el manejo de estado síncrono en componentes se simplifica usando toSignal() o consumiendo directamente el Observable con el pipe async.
+
+Reescritura del Fragmento B corregido (Angular 17+)
+
+import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { timer, switchMap, catchError, of } from 'rxjs';
+
+// 1. Interfaces y Modelos fuertemente tipados (sin 'any')
+
+export interface ProductInCart {
+  id: number;
+  title: string;
+  price: number;
+  quantity: number;
+  total: number;
+  discountPercentage: number;
+  discountedTotal: number;
+  thumbnail: string;
+}
+
+export interface CartOrder {
+  id: number;
+  products: ProductInCart[];
+  total: number;
+  discountedTotal: number;
+  userId: number;
+  totalProducts: number;
+  totalQuantity: number;
+}
+
+export interface CartsApiResponse {
+  carts: CartOrder[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+// 2. Servicio desacoplado (Capa de datos y lógica HTTP)
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+
+@Injectable({
+  providedIn: 'root',
+})
+export class OrdersService {
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = 'https://dummyjson.com/carts';
+
+  getCarts(): Observable<CartsApiResponse> {
+    return this.http.get<CartsApiResponse>(this.apiUrl);
+  }
+}
+
+// 3. Componente Standalone reactivo y sin fugas de memoria
+@Component({
+  selector: 'app-orders',
+  standalone: true,
+  imports: [], // En Angular 17+ el nuevo control flow (@if, @for) no requiere CommonModule
+  template: `
+    <div class="orders-container">
+      <h2>Listado de Pedidos</h2>
+
+      @if (loading() && orders().length === 0) {
+        <p>Cargando pedidos...</p>
+      }
+
+      @if (errorMessage()) {
+        <div class="error-banner">
+          <p>{{ errorMessage() }}</p>
+        </div>
+      }
+
+      @if (!loading() && orders().length === 0 && !errorMessage()) {
+        <p>No hay pedidos registrados.</p>
+      }
+
+      <!-- Control Flow moderno de Angular 17+ con track obligatorio -->
+      <div class="orders-list">
+        @for (order of orders(); track order.id) {
+          <div class="order-card">
+            <span><strong>Pedido #{{ order.id }}</strong> (Usuario: {{ order.userId }})</span>
+            <span>Total: \${{ order.total }}</span>
+          </div>
+        }
+      </div>
+    </div>
+  `,
+  styles: [`
+    .orders-container { padding: 1rem; }
+    .order-card { 
+      padding: 0.5rem; 
+      border-bottom: 1px solid #ccc; 
+      display: flex; 
+      justify-content: space-between; 
+    }
+    .error-banner { color: red; }
+  `]
+})
+export class OrdersComponent implements OnInit {
+  private readonly ordersService = inject(OrdersService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  // Estado reactivo con Signals
+  readonly orders = signal<CartOrder[]>([]);
+  readonly loading = signal<boolean>(true);
+  readonly errorMessage = signal<string | null>(null);
+
+  ngOnInit(): void {
+    // Polling reactivo cada 5 segundos que se cancela automáticamente al destruirse el componente
+    timer(0, 5000)
+      .pipe(
+        switchMap(() => {
+          this.errorMessage.set(null);
+          return this.ordersService.getCarts().pipe(
+            catchError((err) => {
+              this.errorMessage.set('Error al actualizar los pedidos.');
+              return of(null);
+            })
+          );
+        }),
+        takeUntilDestroyed(this.destroyRef) // Previene fugas de memoria automáticamente
+      )
+      .subscribe((response) => {
+        this.loading.set(false);
+        if (response) {
+          this.orders.set(response.carts);
+        }
+      });
+  }
+}
