@@ -1,6 +1,6 @@
-import '../../products/domain/product.dart';
+import 'package:flutter_app/features/products/domain/product.dart';
 
-/// Representa un elemento en el carrito de compras junto con su cantidad.
+/// Modelo inmutable de Dominio que representa un elemento en el carrito de compras.
 class CartItem {
   final Product product;
   final int quantity;
@@ -10,6 +10,13 @@ class CartItem {
     this.quantity = 1,
   });
 
+  /// Getter para calcular el subtotal del artículo según su cantidad.
+  double get subtotal => product.price * quantity;
+
+  /// Alias de conveniencia para total por ítem.
+  double get totalPrice => subtotal;
+
+  /// Retorna una nueva instancia inmutable con campos modificados.
   CartItem copyWith({
     Product? product,
     int? quantity,
@@ -19,8 +26,6 @@ class CartItem {
       quantity: quantity ?? this.quantity,
     );
   }
-
-  double get totalPrice => product.price * quantity;
 
   @override
   bool operator ==(Object other) =>

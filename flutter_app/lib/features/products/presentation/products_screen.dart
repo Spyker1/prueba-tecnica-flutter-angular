@@ -5,14 +5,14 @@ import 'package:flutter_app/features/products/presentation/providers/products_pr
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Pantalla principal que exhibe el catálogo de productos con búsqueda y carrito.
+/// Pantalla principal que exhibe el catálogo de productos con búsqueda debounced y carrito.
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final productsState = ref.watch(filteredProductsProvider);
-    final totalCartCount = ref.watch(cartTotalCountProvider);
+    final productsAsync = ref.watch(searchResultsProvider);
+    final totalCartCount = ref.watch(cartCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -34,13 +34,14 @@ class ProductsScreen extends ConsumerWidget {
         children: [
           const _SearchBarSection(),
           Expanded(
-            child: productsState.when(
+            child: productsAsync.when(
               data: (products) {
                 if (products.isEmpty) {
                   return const _EmptyProductsView();
                 }
                 return RefreshIndicator(
                   onRefresh: () async {
+                    ref.invalidate(searchResultsProvider);
                     ref.invalidate(productsProvider);
                   },
                   child: ListView.separated(
@@ -63,7 +64,10 @@ class ProductsScreen extends ConsumerWidget {
               ),
               error: (error, stackTrace) => _ErrorView(
                 errorMessage: error.toString(),
-                onRetry: () => ref.invalidate(productsProvider),
+                onRetry: () {
+                  ref.invalidate(searchResultsProvider);
+                  ref.invalidate(productsProvider);
+                },
               ),
             ),
           ),
@@ -78,17 +82,19 @@ class _SearchBarSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(searchQueryProvider);
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
         decoration: InputDecoration(
-          hintText: 'Buscar por nombre, categoría o marca...',
+          hintText: 'Buscar productos (DummyJSON)...',
           prefixIcon: const Icon(Icons.search),
-          suffixIcon: ref.watch(productSearchQueryProvider).isNotEmpty
+          suffixIcon: query.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear),
                   onPressed: () {
-                    ref.read(productSearchQueryProvider.notifier).state = '';
+                    ref.read(searchQueryProvider.notifier).state = '';
                   },
                 )
               : null,
@@ -105,7 +111,7 @@ class _SearchBarSection extends ConsumerWidget {
           ),
         ),
         onChanged: (value) {
-          ref.read(productSearchQueryProvider.notifier).state = value;
+          ref.read(searchQueryProvider.notifier).state = value;
         },
       ),
     );
@@ -181,18 +187,26 @@ class _ProductCard extends ConsumerWidget {
                         color: Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      product.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                        height: 1.3,
-                      ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 16,
+                          color: Color(0xFFF59E0B),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          product.rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -260,7 +274,7 @@ class _EmptyProductsView extends StatelessWidget {
           ),
           SizedBox(height: 16),
           Text(
-            'No se encontraron productos',
+            'No se encontraron productos coincidentes',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,

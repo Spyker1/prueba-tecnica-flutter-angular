@@ -13,20 +13,18 @@ final _router = GoRouter(
     GoRoute(
       path: '/',
       builder: (context, state) => const ProductsScreen(),
-      routes: [
-        GoRoute(
-          path: 'product/:id',
-          builder: (context, state) {
-            final idString = state.pathParameters['id'];
-            final id = int.tryParse(idString ?? '') ?? 0;
-            return ProductDetailScreen(productId: id);
-          },
-        ),
-        GoRoute(
-          path: 'cart',
-          builder: (context, state) => const CartScreen(),
-        ),
-      ],
+    ),
+    GoRoute(
+      path: '/product/:id',
+      builder: (context, state) {
+        final idString = state.pathParameters['id'];
+        final id = int.tryParse(idString ?? '') ?? 0;
+        return ProductDetailScreen(productId: id);
+      },
+    ),
+    GoRoute(
+      path: '/cart',
+      builder: (context, state) => const CartScreen(),
     ),
   ],
   errorBuilder: (context, state) => Scaffold(
@@ -69,7 +67,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Prueba Técnica Flutter',
+      title: 'Mini Catálogo DummyJSON',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       routerConfig: _router,

@@ -5,7 +5,7 @@ import 'package:flutter_app/features/products/presentation/providers/products_pr
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Pantalla de detalle para un producto específico seleccionado.
+/// Pantalla de detalle para un producto específico seleccionado por ID.
 class ProductDetailScreen extends ConsumerWidget {
   final int productId;
 
@@ -17,7 +17,7 @@ class ProductDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final productAsync = ref.watch(productDetailProvider(productId));
-    final totalCartCount = ref.watch(cartTotalCountProvider);
+    final totalCartCount = ref.watch(cartCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -87,10 +87,10 @@ class _ProductDetailContent extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Imagen de cabecera
+                // Imagen principal del producto
                 Container(
                   width: double.infinity,
-                  height: 280,
+                  height: 300,
                   color: Colors.white,
                   child: Image.network(
                     product.thumbnail,
@@ -138,14 +138,14 @@ class _ProductDetailContent extends ConsumerWidget {
                               const Icon(
                                 Icons.star_rounded,
                                 color: Color(0xFFF59E0B),
-                                size: 20,
+                                size: 22,
                               ),
                               const SizedBox(width: 4),
                               Text(
                                 product.rating.toStringAsFixed(1),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 14,
+                                  fontSize: 15,
                                 ),
                               ),
                             ],
@@ -174,44 +174,17 @@ class _ProductDetailContent extends ConsumerWidget {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '\$${product.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          if (product.discountPercentage > 0) ...[
-                            const SizedBox(width: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFDCFCE7),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                '-${product.discountPercentage.toStringAsFixed(0)}% OFF',
-                                style: const TextStyle(
-                                  color: Color(0xFF166534),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
+                      Text(
+                        '\$${product.price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        'Descripción',
+                        'Descripción completa',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -227,27 +200,33 @@ class _ProductDetailContent extends ConsumerWidget {
                           height: 1.6,
                         ),
                       ),
-                      if (product.stock > 0) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              size: 18,
-                              color: Color(0xFF16A34A),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Icon(
+                            product.stock > 0
+                                ? Icons.check_circle_outline
+                                : Icons.cancel_outlined,
+                            size: 18,
+                            color: product.stock > 0
+                                ? const Color(0xFF16A34A)
+                                : const Color(0xFFEF4444),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            product.stock > 0
+                                ? 'Unidades en stock: ${product.stock}'
+                                : 'Agotado temporalmente',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: product.stock > 0
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFEF4444),
+                              fontWeight: FontWeight.w600,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Disponibles en stock: ${product.stock}',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF16A34A),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -269,20 +248,24 @@ class _ProductDetailContent extends ConsumerWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  ref.read(cartProvider.notifier).addItem(product);
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${product.title} agregado al carrito'),
-                      duration: const Duration(seconds: 2),
-                      action: SnackBarAction(
-                        label: 'Ver carrito',
-                        onPressed: () => context.push('/cart'),
-                      ),
-                    ),
-                  );
-                },
+                onPressed: product.stock > 0
+                    ? () {
+                        ref.read(cartProvider.notifier).addItem(product);
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              '${product.title} agregado al carrito',
+                            ),
+                            duration: const Duration(seconds: 2),
+                            action: SnackBarAction(
+                              label: 'Ver carrito',
+                              onPressed: () => context.push('/cart'),
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
                 icon: const Icon(Icons.add_shopping_cart),
                 label: const Text(
                   'Agregar al Carrito',

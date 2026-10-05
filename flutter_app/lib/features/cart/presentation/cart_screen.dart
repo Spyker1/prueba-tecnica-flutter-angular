@@ -4,18 +4,18 @@ import 'package:flutter_app/features/cart/presentation/providers/cart_notifier.d
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Pantalla que muestra el carrito de compras, cantidades y totales acumulados.
+/// Pantalla que muestra el carrito de compras, controles de cantidad y checkout simulado.
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cartItems = ref.watch(cartProvider);
-    final totalPrice = ref.watch(cartTotalPriceProvider);
+    final totalPrice = ref.watch(cartTotalProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mi Carrito'),
+        title: const Text('Mi Carrito de Compras'),
         actions: [
           if (cartItems.isNotEmpty)
             IconButton(
@@ -47,13 +47,13 @@ class CartScreen extends ConsumerWidget {
                 _CartSummarySection(
                   totalPrice: totalPrice,
                   onCheckout: () {
+                    ref.read(cartProvider.notifier).clearCart();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('¡Compra simulada procesada con éxito!'),
                         duration: Duration(seconds: 2),
                       ),
                     );
-                    ref.read(cartProvider.notifier).clearCart();
                     context.go('/');
                   },
                 ),
@@ -68,7 +68,7 @@ class CartScreen extends ConsumerWidget {
       builder: (ctx) => AlertDialog(
         title: const Text('¿Vaciar carrito?'),
         content: const Text(
-          'Se eliminarán todos los artículos agregados a tu lista.',
+          'Se eliminarán todos los artículos agregados a tu lista de compra.',
         ),
         actions: [
           TextButton(
@@ -143,7 +143,7 @@ class _CartItemTile extends ConsumerWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Subtotal: \$${item.totalPrice.toStringAsFixed(2)}',
+                    'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -156,12 +156,14 @@ class _CartItemTile extends ConsumerWidget {
             Row(
               children: [
                 IconButton(
+                  tooltip: 'Disminuir cantidad',
                   icon: const Icon(Icons.remove_circle_outline, size: 22),
                   color: const Color(0xFF64748B),
                   onPressed: () {
-                    ref
-                        .read(cartProvider.notifier)
-                        .decreaseItem(item.product.id);
+                    ref.read(cartProvider.notifier).updateQuantity(
+                          item.product.id,
+                          item.quantity - 1,
+                        );
                   },
                 ),
                 Text(
@@ -172,13 +174,18 @@ class _CartItemTile extends ConsumerWidget {
                   ),
                 ),
                 IconButton(
+                  tooltip: 'Aumentar cantidad',
                   icon: const Icon(Icons.add_circle_outline, size: 22),
                   color: const Color(0xFF4F46E5),
                   onPressed: () {
-                    ref.read(cartProvider.notifier).addItem(item.product);
+                    ref.read(cartProvider.notifier).updateQuantity(
+                          item.product.id,
+                          item.quantity + 1,
+                        );
                   },
                 ),
                 IconButton(
+                  tooltip: 'Eliminar del carrito',
                   icon: const Icon(Icons.delete_outline, size: 20),
                   color: const Color(0xFFEF4444),
                   onPressed: () {
@@ -291,7 +298,7 @@ class _CartSummarySection extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton.icon(
-                onPressed: onCheckout,
+                onPressed: totalPrice > 0 ? onCheckout : null,
                 icon: const Icon(Icons.payment_rounded),
                 label: const Text(
                   'Proceder al Pago',
