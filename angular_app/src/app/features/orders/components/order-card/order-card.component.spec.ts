@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter, Router } from '@angular/router';
 import { OrderCardComponent } from './order-card.component';
 import { CartOrder } from '../../../../core/models/order.model';
 
 describe('OrderCardComponent', () => {
   let component: OrderCardComponent;
   let fixture: ComponentFixture<OrderCardComponent>;
+  let router: Router;
 
   const mockOrder: CartOrder = {
     id: 42,
@@ -29,8 +31,12 @@ describe('OrderCardComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [OrderCardComponent]
+      imports: [OrderCardComponent],
+      providers: [provideRouter([])]
     }).compileComponents();
+
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigate');
 
     fixture = TestBed.createComponent(OrderCardComponent);
     component = fixture.componentInstance;
@@ -68,5 +74,6 @@ describe('OrderCardComponent', () => {
     // Comprueba que el evento de salida emita el ID del pedido esperado (42) y el objeto completo
     expect(emittedId).toBe(42);
     expect(emittedOrder).toEqual(mockOrder);
+    expect(router.navigate).toHaveBeenCalledWith(['/orders', 42]);
   });
 });

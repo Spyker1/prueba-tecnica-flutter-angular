@@ -1,6 +1,7 @@
 import {
   Component,
   OnInit,
+  ChangeDetectionStrategy,
   inject,
   signal,
   computed,
@@ -11,11 +12,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { OrdersService } from '../../../../core/services/orders.service';
 import { CartOrder } from '../../../../core/models/order.model';
 import { OrderCardComponent } from '../../components/order-card/order-card.component';
+import { DiscountPipe } from '../../../../core/pipes/discount.pipe';
 
 @Component({
   selector: 'app-orders-page',
   standalone: true,
-  imports: [CurrencyPipe, OrderCardComponent],
+  imports: [CurrencyPipe, OrderCardComponent, DiscountPipe],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './orders-page.component.html',
   styleUrl: './orders-page.component.css'
 })

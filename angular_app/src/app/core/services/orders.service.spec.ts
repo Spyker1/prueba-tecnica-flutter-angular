@@ -72,4 +72,18 @@ describe('OrdersService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(mockApiResponse);
   });
+
+  it('debe realizar una petición GET a https://dummyjson.com/carts/:id y retornar el pedido individual', () => {
+    const singleOrder = mockApiResponse.carts[0];
+
+    service.getOrderById(1).subscribe((order) => {
+      expect(order).toEqual(singleOrder);
+      expect(order.id).toBe(1);
+      expect(order.total).toBe(50.0);
+    });
+
+    const req = httpTestingController.expectOne('https://dummyjson.com/carts/1');
+    expect(req.request.method).toBe('GET');
+    req.flush(singleOrder);
+  });
 });

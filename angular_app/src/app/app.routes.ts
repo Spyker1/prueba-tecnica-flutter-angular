@@ -8,6 +8,14 @@ export const routes: Routes = [
     title: 'Panel de Pedidos | DummyJSON'
   },
   {
+    path: 'orders/:id',
+    loadComponent: () =>
+      import(
+        './features/orders/pages/order-detail-page/order-detail-page.component'
+      ).then((m) => m.OrderDetailPageComponent),
+    title: 'Detalle del Pedido | DummyJSON'
+  },
+  {
     path: '**',
     redirectTo: ''
   }

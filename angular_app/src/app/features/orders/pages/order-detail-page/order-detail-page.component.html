@@ -1,0 +1,155 @@
+<div class="detail-page-container">
+  <!-- Navegación superior / Breadcrumb -->
+  <nav class="breadcrumb-bar" aria-label="Navegación de retorno">
+    <a routerLink="/" class="back-link">
+      <svg class="back-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clip-rule="evenodd" />
+      </svg>
+      <span>Volver al Panel de Pedidos</span>
+    </a>
+    <span class="breadcrumb-separator">/</span>
+    <span class="breadcrumb-current">Detalle de Pedido</span>
+  </nav>
+
+  <!-- Estado de Carga -->
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite">
+      <div class="spinner"></div>
+      <p>Consultando detalle del pedido en DummyJSON...</p>
+    </div>
+  }
+
+  <!-- Estado de Error -->
+  @if (errorMessage()) {
+    <div class="error-banner" role="alert">
+      <div class="error-content">
+        <svg class="error-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+        </svg>
+        <span>{{ errorMessage() }}</span>
+      </div>
+      <button
+        type="button"
+        class="retry-button"
+        (click)="id() ? loadOrderDetail(id()!) : null"
+      >
+        Reintentar
+      </button>
+    </div>
+  }
+
+  <!-- Contenido Principal del Pedido -->
+  @if (!loading() && order(); as currentOrder) {
+    <div class="detail-card">
+      <!-- Encabezado de la Orden -->
+      <header class="detail-card-header">
+        <div class="order-info-group">
+          <div class="title-with-badge">
+            <h1>Pedido #{{ currentOrder.id }}</h1>
+            <span
+              class="tier-pill"
+              [class.tier-high]="currentOrder.discountedTotal >= 5000"
+              [class.tier-medium]="currentOrder.discountedTotal >= 1000 && currentOrder.discountedTotal < 5000"
+              [class.tier-low]="currentOrder.discountedTotal < 1000"
+            >
+              {{ currentOrder.discountedTotal >= 5000 ? 'Prioritario (>$5,000)' : (currentOrder.discountedTotal >= 1000 ? 'Destacado ($1,000+)' : 'Estándar') }}
+            </span>
+          </div>
+          <p class="user-meta">
+            Asignado a: <strong>Usuario #{{ currentOrder.userId }}</strong> · DummyJSON Carts API
+          </p>
+        </div>
+
+        <div class="total-highlight">
+          <span class="total-label">Total a Pagar</span>
+          <span class="total-amount">{{ currentOrder.discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
+          @if (currentOrder.total | discount:currentOrder.discountedTotal) {
+            <span class="discount-tag">
+              {{ currentOrder.total | discount:currentOrder.discountedTotal:'badge' }}
+            </span>
+          }
+        </div>
+      </header>
+
+      <!-- Métricas Resumen -->
+      <section class="summary-metrics-grid" aria-label="Métricas del pedido">
+        <div class="metric-box">
+          <span class="metric-label">Productos Únicos</span>
+          <span class="metric-value">{{ currentOrder.totalProducts }}</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Unidades Totales</span>
+          <span class="metric-value">{{ currentOrder.totalQuantity }} uds</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-label">Total Original</span>
+          <span class="metric-value strikethrough">{{ currentOrder.total | currency:'USD':'symbol':'1.2-2' }}</span>
+        </div>
+        <div class="metric-box savings">
+          <span class="metric-label">Descuento Global</span>
+          <span class="metric-value accent">
+            {{ currentOrder.total | discount:currentOrder.discountedTotal:'savings' }}
+          </span>
+        </div>
+      </section>
+
+      <!-- Desglose de Productos -->
+      <section class="products-section" aria-label="Desglose de productos">
+        <h2>Desglose de Artículos ({{ currentOrder.products.length }})</h2>
+
+        <div class="products-table-wrap">
+          <table class="products-table">
+            <thead>
+              <tr>
+                <th scope="col">Producto</th>
+                <th scope="col" class="text-right">Precio Unit.</th>
+                <th scope="col" class="text-center">Cantidad</th>
+                <th scope="col" class="text-right">Descuento</th>
+                <th scope="col" class="text-right">Subtotal Final</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (product of currentOrder.products; track product.id) {
+                <tr>
+                  <td class="product-cell">
+                    <img
+                      [src]="product.thumbnail"
+                      [alt]="product.title"
+                      class="product-thumb"
+                      loading="lazy"
+                    />
+                    <div class="product-name-group">
+                      <span class="product-name">{{ product.title }}</span>
+                      <span class="product-sku">ID: {{ product.id }}</span>
+                    </div>
+                  </td>
+                  <td class="text-right price-col">
+                    {{ product.price | currency:'USD':'symbol':'1.2-2' }}
+                  </td>
+                  <td class="text-center qty-col">
+                    <span class="qty-badge">{{ product.quantity }}</span>
+                  </td>
+                  <td class="text-right discount-col">
+                    @if (product.discountPercentage > 0) {
+                      <span class="product-discount-pill">
+                        {{ product.discountPercentage | discount }}
+                      </span>
+                    } @else {
+                      <span class="no-discount">-</span>
+                    }
+                  </td>
+                  <td class="text-right total-col">
+                    <span class="final-price">{{ product.discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
+                    @if (product.total !== product.discountedTotal) {
+                      <span class="original-price">{{ product.total | currency:'USD':'symbol':'1.2-2' }}</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  }
+</div>

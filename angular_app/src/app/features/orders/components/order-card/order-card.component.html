@@ -1,30 +1,44 @@
 <div class="order-card">
+  <!-- Fila Superior Limpia: ID de pedido y usuario en una sola línea -->
   <div class="order-card-header">
-    <div class="order-title-group">
+    <div class="order-identity">
       <span class="order-id">Pedido #{{ order().id }}</span>
-      <span class="user-badge">Usuario #{{ order().userId }}</span>
+      <span class="user-meta">· Usuario #{{ order().userId }}</span>
     </div>
     <span class="products-pill">
-      {{ order().totalProducts }} {{ order().totalProducts === 1 ? 'producto' : 'productos' }}
+      {{ order().totalProducts }} {{ order().totalProducts === 1 ? 'artículo' : 'artículos' }}
     </span>
   </div>
 
+  <!-- Cuerpo de la Tarjeta -->
   <div class="order-card-body">
-    <div class="pricing-summary">
-      <div class="price-row total-original">
-        <span class="price-label">Total original:</span>
-        <span class="price-value original">{{ order().total | currency:'USD':'symbol':'1.2-2' }}</span>
+    <div class="pricing-row">
+      <div class="price-group">
+        <span class="price-label">Total a pagar:</span>
+        <div class="price-values">
+          <span class="price-value">{{ order().discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
+          @if (order().total !== order().discountedTotal) {
+            <span class="price-original">{{ order().total | currency:'USD':'symbol':'1.2-2' }}</span>
+          }
+        </div>
       </div>
-      <div class="price-row total-discounted">
-        <span class="price-label">Total con descuento:</span>
-        <span class="price-value discounted">{{ order().discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
-      </div>
+
+      @if (order().total | discount:order().discountedTotal) {
+        <span class="discount-pill">
+          {{ order().total | discount:order().discountedTotal }}
+        </span>
+      }
     </div>
-    <div class="units-info">
-      <span>Unidades totales: <strong>{{ order().totalQuantity }}</strong></span>
+
+    <div class="meta-row">
+      <span class="units-info">{{ order().totalQuantity }} unidades en orden</span>
+      @if (order().total | discount:order().discountedTotal:'savings'; as savings) {
+        <span class="savings-info">{{ savings }}</span>
+      }
     </div>
   </div>
 
+  <!-- Pie con Botón Secundario Compacto -->
   <div class="order-card-footer">
     <button
       type="button"
@@ -32,19 +46,8 @@
       (click)="onViewDetail()"
       [attr.aria-label]="'Ver detalle del pedido ' + order().id"
     >
-      <span>Ver Detalle</span>
-      <svg
-        class="icon"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          fill-rule="evenodd"
-          d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
-          clip-rule="evenodd"
-        />
-      </svg>
+      <span>Ver detalle</span>
+      <span class="arrow-symbol" aria-hidden="true">&rarr;</span>
     </button>
   </div>
 </div>
