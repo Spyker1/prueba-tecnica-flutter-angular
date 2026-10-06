@@ -1,0 +1,223 @@
+<div class="orders-page-container">
+  <!-- Cabecera Principal -->
+  <header class="page-header">
+    <div class="header-content">
+      <div class="title-section">
+        <h1>Panel de Gestión de Pedidos</h1>
+        <p class="subtitle">Monitoreo y consulta de pedidos en tiempo real vía DummyJSON</p>
+      </div>
+
+      <div class="stats-badge-group">
+        <div class="stat-badge">
+          <span class="stat-label">Total Recibidos</span>
+          <span class="stat-value">{{ totalOrdersCount() }}</span>
+        </div>
+        <div class="stat-badge accent">
+          <span class="stat-label">Mostrando</span>
+          <span class="stat-value">{{ filteredOrdersCount() }}</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Barra de Filtros Reactiva -->
+  <section class="filter-section" aria-label="Filtros de pedidos">
+    <div class="filter-card">
+      <div class="filter-field">
+        <label for="minTotalInput" class="filter-label">
+          <svg class="filter-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M2.628 1.601C5.028 1.206 7.49 1 10 1s4.973.206 7.372.601a.75.75 0 01.628.74v2.288a2.25 2.25 0 01-.659 1.59l-4.682 4.683a2.25 2.25 0 00-.659 1.59v3.037c0 .684-.31 1.33-.844 1.757l-1.937 1.55A.75.75 0 018 18.25v-5.757a2.25 2.25 0 00-.659-1.591L2.659 6.22A2.25 2.25 0 012 4.629V2.34a.75.75 0 01.628-.74z" clip-rule="evenodd" />
+          </svg>
+          Filtrar por Total Mínimo (con descuento)
+        </label>
+        <div class="input-wrapper">
+          <span class="currency-prefix">$</span>
+          <input
+            id="minTotalInput"
+            type="number"
+            min="0"
+            step="100"
+            class="filter-input"
+            [value]="minTotalFilter()"
+            (input)="onMinTotalChange($event)"
+            placeholder="0.00"
+          />
+          @if (minTotalFilter() > 0) {
+            <button
+              type="button"
+              class="clear-button"
+              (click)="resetFilter()"
+              title="Restablecer filtro a 0"
+            >
+              Limpiar
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="preset-filters">
+        <span class="presets-label">Acceso rápido:</span>
+        <button
+          type="button"
+          class="preset-chip"
+          [class.active]="minTotalFilter() === 0"
+          (click)="minTotalFilter.set(0)"
+        >
+          Todos ($0+)
+        </button>
+        <button
+          type="button"
+          class="preset-chip"
+          [class.active]="minTotalFilter() === 1000"
+          (click)="minTotalFilter.set(1000)"
+        >
+          $1,000+
+        </button>
+        <button
+          type="button"
+          class="preset-chip"
+          [class.active]="minTotalFilter() === 5000"
+          (click)="minTotalFilter.set(5000)"
+        >
+          $5,000+
+        </button>
+        <button
+          type="button"
+          class="preset-chip"
+          [class.active]="minTotalFilter() === 10000"
+          (click)="minTotalFilter.set(10000)"
+        >
+          $10,000+
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Estado de Carga -->
+  @if (loading()) {
+    <div class="loading-state" role="status" aria-live="polite">
+      <div class="spinner"></div>
+      <p>Cargando órdenes desde DummyJSON...</p>
+    </div>
+  }
+
+  <!-- Estado de Error -->
+  @if (errorMessage()) {
+    <div class="error-banner" role="alert">
+      <div class="error-content">
+        <svg class="error-icon" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+        </svg>
+        <span>{{ errorMessage() }}</span>
+      </div>
+      <button type="button" class="retry-button" (click)="loadOrders()">
+        Reintentar
+      </button>
+    </div>
+  }
+
+  <!-- Grilla de Pedidos (Control Flow de Angular 17+) -->
+  @if (!loading() && !errorMessage()) {
+    <section class="orders-grid" aria-label="Lista de pedidos">
+      @for (order of filteredOrders(); track order.id) {
+        <app-order-card
+          [order]="order"
+          (viewDetail)="onSelectOrder($event)"
+        />
+      } @empty {
+        <div class="empty-state">
+          <div class="empty-icon-wrap">
+            <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+            </svg>
+          </div>
+          <h3>No se encontraron pedidos</h3>
+          <p>Ningún pedido coincide con el filtro de total mínimo de <strong>{{ minTotalFilter() | currency:'USD':'symbol':'1.2-2' }}</strong>.</p>
+          <button type="button" class="reset-button" (click)="resetFilter()">
+            Restablecer filtro
+          </button>
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Modal de Detalle del Pedido Seleccionado -->
+  @if (selectedOrder(); as selected) {
+    <div class="modal-backdrop" (click)="closeDetail()" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-dialog" (click)="$event.stopPropagation()">
+        <!-- Encabezado del Modal -->
+        <div class="modal-header">
+          <div>
+            <h2 id="modalTitle">Detalle del Pedido #{{ selected.id }}</h2>
+            <span class="modal-subtitle">Asignado al Usuario ID: {{ selected.userId }}</span>
+          </div>
+          <button
+            type="button"
+            class="modal-close-btn"
+            (click)="closeDetail()"
+            aria-label="Cerrar modal"
+          >
+            &times;
+          </button>
+        </div>
+
+        <!-- Resumen Rápido -->
+        <div class="modal-summary-pills">
+          <div class="summary-pill">
+            <span class="pill-label">Productos únicos</span>
+            <span class="pill-value">{{ selected.totalProducts }}</span>
+          </div>
+          <div class="summary-pill">
+            <span class="pill-label">Cantidad total</span>
+            <span class="pill-value">{{ selected.totalQuantity }} uds</span>
+          </div>
+          <div class="summary-pill">
+            <span class="pill-label">Total original</span>
+            <span class="pill-value original">{{ selected.total | currency:'USD':'symbol':'1.2-2' }}</span>
+          </div>
+          <div class="summary-pill highlight">
+            <span class="pill-label">Total final</span>
+            <span class="pill-value final">{{ selected.discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <!-- Lista de Productos en la Orden -->
+        <div class="modal-body">
+          <h3>Productos en este pedido ({{ selected.products.length }})</h3>
+          <div class="products-list">
+            @for (product of selected.products; track product.id) {
+              <div class="product-item">
+                <img
+                  [src]="product.thumbnail"
+                  [alt]="product.title"
+                  class="product-thumb"
+                  loading="lazy"
+                />
+                <div class="product-info">
+                  <span class="product-name">{{ product.title }}</span>
+                  <span class="product-meta">
+                    {{ product.quantity }} uds &times; {{ product.price | currency:'USD':'symbol':'1.2-2' }}
+                  </span>
+                  @if (product.discountPercentage > 0) {
+                    <span class="discount-tag">-{{ product.discountPercentage }}% desc.</span>
+                  }
+                </div>
+                <div class="product-total">
+                  <span class="item-discounted">{{ product.discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
+                  <span class="item-original">{{ product.total | currency:'USD':'symbol':'1.2-2' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Pie del Modal -->
+        <div class="modal-footer">
+          <button type="button" class="modal-action-btn" (click)="closeDetail()">
+            Cerrar Detalle
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

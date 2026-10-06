@@ -125,6 +125,13 @@ class _ProductCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    final inCartItem =
+        cart.where((item) => item.product.id == product.id).firstOrNull;
+    final inCartQuantity = inCartItem?.quantity ?? 0;
+    final isOutOfStock = product.stock <= 0;
+    final isMaxStock = inCartQuantity >= product.stock;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -226,24 +233,68 @@ class _ProductCard extends ConsumerWidget {
                             ),
                             textStyle: const TextStyle(fontSize: 12),
                           ),
-                          onPressed: () {
-                            ref.read(cartProvider.notifier).addItem(product);
-                            ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${product.title} agregado al carrito',
-                                ),
-                                duration: const Duration(seconds: 2),
-                                action: SnackBarAction(
-                                  label: 'Ver carrito',
-                                  onPressed: () => context.push('/cart'),
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.add_shopping_cart, size: 16),
-                          label: const Text('Agregar'),
+                          onPressed: (isOutOfStock || isMaxStock)
+                              ? null
+                              : () {
+                                  final added = ref
+                                      .read(cartProvider.notifier)
+                                      .addItem(product);
+                                  ScaffoldMessenger.of(context).clearSnackBars();
+                                  if (added) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '${product.title} agregado al carrito',
+                                        ),
+                                        behavior: SnackBarBehavior.floating,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 90,
+                                          left: 20,
+                                          right: 20,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        duration:
+                                            const Duration(milliseconds: 1200),
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Stock máximo alcanzado (${product.stock} unidades)',
+                                        ),
+                                        behavior: SnackBarBehavior.floating,
+                                        margin: const EdgeInsets.only(
+                                          bottom: 90,
+                                          left: 20,
+                                          right: 20,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                        duration:
+                                            const Duration(milliseconds: 1200),
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: Icon(
+                            isOutOfStock
+                                ? Icons.remove_shopping_cart_outlined
+                                : (isMaxStock
+                                    ? Icons.block
+                                    : Icons.add_shopping_cart),
+                            size: 16,
+                          ),
+                          label: Text(
+                            isOutOfStock
+                                ? 'Agotado'
+                                : (isMaxStock ? 'Máximo' : 'Agregar'),
+                          ),
                         ),
                       ],
                     ),

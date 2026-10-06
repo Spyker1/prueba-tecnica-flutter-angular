@@ -1,0 +1,50 @@
+<div class="order-card">
+  <div class="order-card-header">
+    <div class="order-title-group">
+      <span class="order-id">Pedido #{{ order().id }}</span>
+      <span class="user-badge">Usuario #{{ order().userId }}</span>
+    </div>
+    <span class="products-pill">
+      {{ order().totalProducts }} {{ order().totalProducts === 1 ? 'producto' : 'productos' }}
+    </span>
+  </div>
+
+  <div class="order-card-body">
+    <div class="pricing-summary">
+      <div class="price-row total-original">
+        <span class="price-label">Total original:</span>
+        <span class="price-value original">{{ order().total | currency:'USD':'symbol':'1.2-2' }}</span>
+      </div>
+      <div class="price-row total-discounted">
+        <span class="price-label">Total con descuento:</span>
+        <span class="price-value discounted">{{ order().discountedTotal | currency:'USD':'symbol':'1.2-2' }}</span>
+      </div>
+    </div>
+    <div class="units-info">
+      <span>Unidades totales: <strong>{{ order().totalQuantity }}</strong></span>
+    </div>
+  </div>
+
+  <div class="order-card-footer">
+    <button
+      type="button"
+      class="detail-button"
+      (click)="onViewDetail()"
+      [attr.aria-label]="'Ver detalle del pedido ' + order().id"
+    >
+      <span>Ver Detalle</span>
+      <svg
+        class="icon"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fill-rule="evenodd"
+          d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+          clip-rule="evenodd"
+        />
+      </svg>
+    </button>
+  </div>
+</div>

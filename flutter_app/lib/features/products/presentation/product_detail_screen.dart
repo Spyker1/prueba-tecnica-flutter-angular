@@ -80,6 +80,14 @@ class _ProductDetailContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cart = ref.watch(cartProvider);
+    final inCartItem =
+        cart.where((item) => item.product.id == product.id).firstOrNull;
+    final currentQuantity = inCartItem?.quantity ?? 0;
+    final isOutOfStock = product.stock <= 0;
+    final isMaxStockReached = currentQuantity >= product.stock;
+    final canAddToCart = !isOutOfStock && !isMaxStockReached;
+
     return Column(
       children: [
         Expanded(
@@ -87,40 +95,60 @@ class _ProductDetailContent extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Imagen principal del producto
-                Container(
-                  width: double.infinity,
-                  height: 300,
-                  color: Colors.white,
-                  child: Image.network(
-                    product.thumbnail,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Center(
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        size: 64,
-                        color: Color(0xFF94A3B8),
+                // Imagen envuelta en Card elevada con fondo sutil
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Card(
+                    elevation: 2,
+                    shadowColor: Colors.black.withOpacity(0.06),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Container(
+                      width: double.infinity,
+                      height: 280,
+                      color: const Color(0xFFF8FAFC),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(16),
+                      child: Image.network(
+                        product.thumbnail,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            size: 64,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
-                const Divider(height: 1),
                 Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Badge de categoría redondeado y rating
                       Row(
                         children: [
                           if (product.category.isNotEmpty)
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
+                                horizontal: 12,
+                                vertical: 6,
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEEF2FF),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(20),
+                                border:
+                                    Border.all(color: const Color(0xFFC7D2FE)),
                               ),
                               child: Text(
                                 product.category.toUpperCase(),
@@ -128,39 +156,60 @@ class _ProductDetailContent extends ConsumerWidget {
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF4F46E5),
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.6,
                                 ),
                               ),
                             ),
                           const Spacer(),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.star_rounded,
-                                color: Color(0xFFF59E0B),
-                                size: 22,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                product.rating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.star_rounded,
+                                  color: Color(0xFFD97706),
+                                  size: 18,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 4),
+                                Text(
+                                  product.rating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: Color(0xFF92400E),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
+                      // Título con jerarquía headlineMedium en negrita grande
                       Text(
                         product.title,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                          letterSpacing: -0.5,
-                        ),
+                        style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFF0F172A),
+                                  letterSpacing: -0.5,
+                                ) ??
+                            const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.5,
+                            ),
                       ),
                       if (product.brand.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -174,17 +223,93 @@ class _ProductDetailContent extends ConsumerWidget {
                         ),
                       ],
                       const SizedBox(height: 16),
-                      Text(
-                        '\$${product.price.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
+                      // Precio destacado
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            '\$${product.price.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'USD',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Badge de stock dinámico (verde si disponible, rojo si agotado)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: product.stock > 0
+                              ? const Color(0xFFDCFCE7)
+                              : const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: product.stock > 0
+                                ? const Color(0xFF86EFAC)
+                                : const Color(0xFFFCA5A5),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              product.stock > 0
+                                  ? Icons.check_circle_rounded
+                                  : Icons.cancel_rounded,
+                              size: 18,
+                              color: product.stock > 0
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFFDC2626),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              product.stock > 0
+                                  ? 'Stock disponible: ${product.stock} unidades'
+                                  : 'Agotado temporalmente',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: product.stock > 0
+                                    ? const Color(0xFF15803D)
+                                    : const Color(0xFFB91C1C),
+                              ),
+                            ),
+                            if (currentQuantity > 0) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                '($currentQuantity en carrito)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isMaxStockReached
+                                      ? const Color(0xFFB91C1C)
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       const Text(
-                        'Descripción completa',
+                        'Descripción del producto',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -200,33 +325,7 @@ class _ProductDetailContent extends ConsumerWidget {
                           height: 1.6,
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Icon(
-                            product.stock > 0
-                                ? Icons.check_circle_outline
-                                : Icons.cancel_outlined,
-                            size: 18,
-                            color: product.stock > 0
-                                ? const Color(0xFF16A34A)
-                                : const Color(0xFFEF4444),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            product.stock > 0
-                                ? 'Unidades en stock: ${product.stock}'
-                                : 'Agotado temporalmente',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: product.stock > 0
-                                  ? const Color(0xFF16A34A)
-                                  : const Color(0xFFEF4444),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -234,42 +333,88 @@ class _ProductDetailContent extends ConsumerWidget {
             ),
           ),
         ),
+        // Botón inferior fijo a ancho completo estilo FilledButton
         Container(
           padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
-            border: Border(
+            border: const Border(
               top: BorderSide(color: Color(0xFFE2E8F0)),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, -4),
+              ),
+            ],
           ),
           child: SafeArea(
             top: false,
             child: SizedBox(
               width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
-                onPressed: product.stock > 0
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: canAddToCart
                     ? () {
-                        ref.read(cartProvider.notifier).addItem(product);
-                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${product.title} agregado al carrito',
+                        final added =
+                            ref.read(cartProvider.notifier).addItem(product);
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        if (added) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('${product.title} agregado al carrito'),
+                              behavior: SnackBarBehavior.floating,
+                              margin: const EdgeInsets.only(
+                                bottom: 90,
+                                left: 20,
+                                right: 20,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              duration: const Duration(milliseconds: 1200),
                             ),
-                            duration: const Duration(seconds: 2),
-                            action: SnackBarAction(
-                              label: 'Ver carrito',
-                              onPressed: () => context.push('/cart'),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Stock máximo alcanzado (${product.stock} unidades)',
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              margin: const EdgeInsets.only(
+                                bottom: 90,
+                                left: 20,
+                                right: 20,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              duration: const Duration(milliseconds: 1200),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       }
                     : null,
-                icon: const Icon(Icons.add_shopping_cart),
-                label: const Text(
-                  'Agregar al Carrito',
-                  style: TextStyle(fontSize: 16),
+                icon: Icon(
+                  isOutOfStock
+                      ? Icons.remove_shopping_cart_outlined
+                      : (isMaxStockReached
+                          ? Icons.block
+                          : Icons.add_shopping_cart_rounded),
+                ),
+                label: Text(
+                  isOutOfStock
+                      ? 'Producto Agotado'
+                      : (isMaxStockReached
+                          ? 'Stock máximo alcanzado (${product.stock} unidades)'
+                          : 'Agregar al Carrito'),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

@@ -48,10 +48,17 @@ class CartScreen extends ConsumerWidget {
                   totalPrice: totalPrice,
                   onCheckout: () {
                     ref.read(cartProvider.notifier).clearCart();
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('¡Compra simulada procesada con éxito!'),
-                        duration: Duration(seconds: 2),
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        duration: const Duration(milliseconds: 1500),
+                        content: const Text(
+                          '¡Compra simulada procesada con éxito!',
+                        ),
                       ),
                     );
                     context.go('/');
@@ -98,20 +105,28 @@ class _CartItemTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isMaxStock = item.quantity >= item.product.stock;
+
     return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFE2E8F0)),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
               child: Container(
-                width: 70,
-                height: 70,
-                color: const Color(0xFFF1F5F9),
+                width: 72,
+                height: 72,
+                color: const Color(0xFFF8FAFC),
+                padding: const EdgeInsets.all(4),
                 child: Image.network(
                   item.product.thumbnail,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => const Icon(
                     Icons.image_not_supported_outlined,
                     color: Color(0xFF94A3B8),
@@ -131,9 +146,10 @@ class _CartItemTile extends ConsumerWidget {
                     style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     '\$${item.product.price.toStringAsFixed(2)} c/u',
                     style: const TextStyle(
@@ -141,58 +157,131 @@ class _CartItemTile extends ConsumerWidget {
                       color: Color(0xFF64748B),
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF4F46E5),
-                    ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Text(
+                        'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF4F46E5),
+                        ),
+                      ),
+                      if (isMaxStock) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'Máx stock',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFFDC2626),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
-            Row(
-              children: [
-                IconButton(
-                  tooltip: 'Disminuir cantidad',
-                  icon: const Icon(Icons.remove_circle_outline, size: 22),
-                  color: const Color(0xFF64748B),
-                  onPressed: () {
-                    ref.read(cartProvider.notifier).updateQuantity(
-                          item.product.id,
-                          item.quantity - 1,
-                        );
-                  },
-                ),
-                Text(
-                  '${item.quantity}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+            const SizedBox(width: 8),
+            // Contenedor cápsula estilizada para botones + y -
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    tooltip: 'Disminuir cantidad',
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                    icon: const Icon(Icons.remove_rounded),
+                    color: const Color(0xFF475569),
+                    onPressed: () {
+                      ref.read(cartProvider.notifier).updateQuantity(
+                            item.product.id,
+                            item.quantity - 1,
+                          );
+                    },
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Aumentar cantidad',
-                  icon: const Icon(Icons.add_circle_outline, size: 22),
-                  color: const Color(0xFF4F46E5),
-                  onPressed: () {
-                    ref.read(cartProvider.notifier).updateQuantity(
-                          item.product.id,
-                          item.quantity + 1,
-                        );
-                  },
-                ),
-                IconButton(
-                  tooltip: 'Eliminar del carrito',
-                  icon: const Icon(Icons.delete_outline, size: 20),
-                  color: const Color(0xFFEF4444),
-                  onPressed: () {
-                    ref.read(cartProvider.notifier).removeItem(item.product.id);
-                  },
-                ),
-              ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text(
+                      '${item.quantity}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: isMaxStock
+                        ? 'Stock máximo alcanzado (${item.product.stock})'
+                        : 'Aumentar cantidad',
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                    padding: EdgeInsets.zero,
+                    iconSize: 18,
+                    icon: const Icon(Icons.add_rounded),
+                    color: isMaxStock
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF4F46E5),
+                    onPressed: isMaxStock
+                        ? null
+                        : () {
+                            final success = ref
+                                .read(cartProvider.notifier)
+                                .updateQuantity(
+                                  item.product.id,
+                                  item.quantity + 1,
+                                );
+                            if (!success) {
+                              ScaffoldMessenger.of(context)
+                                  .hideCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  duration: const Duration(milliseconds: 1500),
+                                  content: Text(
+                                    'Stock máximo alcanzado (${item.product.stock} unidades)',
+                                  ),
+                                ),
+                              );
+                            }
+                          },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'Eliminar del carrito',
+              icon: const Icon(Icons.delete_outline_rounded, size: 20),
+              color: const Color(0xFFEF4444),
+              onPressed: () {
+                ref.read(cartProvider.notifier).removeItem(item.product.id);
+              },
             ),
           ],
         ),
@@ -248,7 +337,7 @@ class _EmptyCartView extends StatelessWidget {
   }
 }
 
-class _CartSummarySection extends StatelessWidget {
+class _CartSummarySection extends ConsumerWidget {
   final double totalPrice;
   final VoidCallback onCheckout;
 
@@ -258,15 +347,24 @@ class _CartSummarySection extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final totalItems = ref.watch(cartCountProvider);
+
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0)),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: const Border(
+          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       child: SafeArea(
         top: false,
         child: Column(
@@ -275,20 +373,68 @@ class _CartSummarySection extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Total a Pagar',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF475569),
-                    fontWeight: FontWeight.w600,
+                Text(
+                  'Artículos ($totalItems)',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   '\$${totalPrice.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: Color(0xFF334155),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Costo de envío',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'Gratis',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF16A34A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10),
+              child: Divider(color: Color(0xFFE2E8F0), height: 1),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total a Pagar',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                     color: Color(0xFF0F172A),
+                  ),
+                ),
+                Text(
+                  '\$${totalPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF4F46E5),
+                    letterSpacing: -0.5,
                   ),
                 ),
               ],
@@ -296,13 +442,16 @@ class _CartSummarySection extends StatelessWidget {
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 50,
-              child: ElevatedButton.icon(
+              height: 52,
+              child: FilledButton.icon(
                 onPressed: totalPrice > 0 ? onCheckout : null,
                 icon: const Icon(Icons.payment_rounded),
                 label: const Text(
                   'Proceder al Pago',
-                  style: TextStyle(fontSize: 16),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),

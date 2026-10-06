@@ -137,5 +137,78 @@ void main() {
         expect(container.read(cartTotalProvider), 45.0);
       },
     );
+
+    test(
+      'Test 4: addItem respeta el stock máximo y rechaza agregar más unidades cuando se alcanza',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(cartProvider.notifier);
+        const limitedProduct = Product(
+          id: 99,
+          title: 'Producto Limitado',
+          description: 'Solo 2 disponibles',
+          price: 50.0,
+          rating: 4.0,
+          thumbnail: 'https://example.com/item.jpg',
+          category: 'demo',
+          stock: 2,
+        );
+
+        // 1. Primer agregado -> permitido
+        final addedFirst = notifier.addItem(limitedProduct);
+        expect(addedFirst, isTrue);
+        expect(container.read(cartProvider).first.quantity, 1);
+
+        // 2. Segundo agregado -> permitido (alcanza el límite de 2)
+        final addedSecond = notifier.addItem(limitedProduct);
+        expect(addedSecond, isTrue);
+        expect(container.read(cartProvider).first.quantity, 2);
+
+        // 3. Tercer agregado -> bloqueado porque quantity >= stock
+        final addedThird = notifier.addItem(limitedProduct);
+        expect(addedThird, isFalse);
+        expect(container.read(cartProvider).first.quantity, 2);
+        expect(container.read(cartTotalProvider), 100.0);
+      },
+    );
+
+    test(
+      'Test 5: updateQuantity no permite superar product.stock y producto con stock 0 no se agrega',
+      () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final notifier = container.read(cartProvider.notifier);
+
+        const outOfStockProduct = Product(
+          id: 100,
+          title: 'Producto Agotado',
+          description: 'Sin inventario',
+          price: 20.0,
+          rating: 3.5,
+          thumbnail: 'https://example.com/zero.jpg',
+          category: 'demo',
+          stock: 0,
+        );
+
+        // Intento de agregar producto sin stock
+        final addedOutOfStock = notifier.addItem(outOfStockProduct);
+        expect(addedOutOfStock, isFalse);
+        expect(container.read(cartProvider), isEmpty);
+
+        // Con producto B (stock: 15)
+        notifier.addItem(productB);
+        expect(container.read(cartProvider).first.quantity, 1);
+
+        // Intentar actualizar cantidad a 20 (supera stock de 15)
+        final updateExceeded = notifier.updateQuantity(productB.id, 20);
+        expect(updateExceeded, isFalse);
+        // Debe acotar la cantidad al stock máximo disponible (15) y no 20
+        expect(container.read(cartProvider).first.quantity, 15);
+        expect(container.read(cartTotalProvider), 15 * 45.0);
+      },
+    );
   });
 }
