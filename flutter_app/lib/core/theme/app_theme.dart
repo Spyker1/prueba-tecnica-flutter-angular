@@ -72,4 +72,67 @@ class AppTheme {
       ),
     );
   }
+
+  static ThemeData get darkTheme {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: primaryColor,
+      brightness: Brightness.dark,
+      primary: const Color(0xFF818CF8), // Indigo 400
+      secondary: secondaryColor,
+      surface: const Color(0xFF0F172A), // Slate 900
+      error: errorColor,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: colorScheme,
+      scaffoldBackgroundColor: const Color(0xFF0B0F19),
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 1,
+        backgroundColor: Color(0xFF0F172A),
+        foregroundColor: Color(0xFFF8FAFC),
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: Color(0xFFF8FAFC),
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+      ),
+      cardTheme: const CardThemeData(
+        elevation: 1,
+        color: Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+          side: BorderSide(
+            color: Color(0xFF334155),
+            width: 1,
+          ),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor: const Color(0xFF6366F1),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
+      ),
+    );
+  }
 }

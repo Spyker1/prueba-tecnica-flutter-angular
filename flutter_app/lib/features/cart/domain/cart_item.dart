@@ -16,6 +16,22 @@ class CartItem {
   /// Alias de conveniencia para total por ítem.
   double get totalPrice => subtotal;
 
+  /// Serializa el ítem a Map compatible con JSON.
+  Map<String, dynamic> toJson() {
+    return {
+      'product': product.toJson(),
+      'quantity': quantity,
+    };
+  }
+
+  /// Deserializa un ítem del carrito desde un Map JSON.
+  factory CartItem.fromJson(Map<String, dynamic> json) {
+    return CartItem(
+      product: Product.fromJson(json['product'] as Map<String, dynamic>),
+      quantity: json['quantity'] as int? ?? 1,
+    );
+  }
+
   /// Retorna una nueva instancia inmutable con campos modificados.
   CartItem copyWith({
     Product? product,

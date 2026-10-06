@@ -39,6 +39,18 @@ class FakeProductsRepository extends ProductsRepository {
   Future<Product> getProductById(int id) async {
     return fakeProducts.firstWhere((p) => p.id == id);
   }
+
+  @override
+  Future<List<String>> getCategories() async {
+    return fakeProducts.map((p) => p.category).toSet().toList();
+  }
+
+  @override
+  Future<List<Product>> getProductsByCategory(String category) async {
+    return fakeProducts
+        .where((p) => p.category.toLowerCase() == category.toLowerCase())
+        .toList();
+  }
 }
 
 /// Byte array de imagen PNG 1x1 transparente para resolver Image.network en tests
@@ -177,6 +189,58 @@ void main() {
       expect(find.text('\$999.99'), findsOneWidget);
       expect(find.text('Teclado Mecánico RGB'), findsOneWidget);
       expect(find.text('\$89.50'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'ProductsScreen muestra botón de alternar tema y chips de categorías',
+    (WidgetTester tester) async {
+      final fakeRepository = FakeProductsRepository(fakeProducts: testProducts);
+      await tester.pumpWidget(buildTestableWidget(fakeRepository));
+      await tester.pumpAndSettle();
+
+      // Verifica botón de modo oscuro en el AppBar
+      expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
+
+      // Verifica presencia del chip "Todas" y categorías disponibles
+      expect(find.widgetWithText(FilterChip, 'Todas'), findsOneWidget);
+      expect(find.text('Laptops'), findsOneWidget);
+      expect(find.text('Accessories'), findsOneWidget);
+
+      // Toca el botón de tema para alternar
+      await tester.tap(find.byIcon(Icons.dark_mode_outlined));
+      await tester.pumpAndSettle();
+
+      // Debe haber cambiado al icono de modo claro
+      expect(find.byIcon(Icons.light_mode_outlined), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'ProductsScreen filtra reactivamente al pulsar un FilterChip de categoría',
+    (WidgetTester tester) async {
+      final fakeRepository = FakeProductsRepository(fakeProducts: testProducts);
+      await tester.pumpWidget(buildTestableWidget(fakeRepository));
+      await tester.pumpAndSettle();
+
+      // Inicialmente se muestran ambos productos
+      expect(find.text('Laptop Ultradelgada'), findsOneWidget);
+      expect(find.text('Teclado Mecánico RGB'), findsOneWidget);
+
+      // Pulsa el chip de categoría 'Laptops'
+      await tester.tap(find.text('Laptops'));
+      await tester.pumpAndSettle();
+
+      // Ahora solo debe mostrar la laptop
+      expect(find.text('Laptop Ultradelgada'), findsOneWidget);
+      expect(find.text('Teclado Mecánico RGB'), findsNothing);
+
+      // Pulsa el chip 'Todas' para restablecer
+      await tester.tap(find.text('Todas'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Laptop Ultradelgada'), findsOneWidget);
+      expect(find.text('Teclado Mecánico RGB'), findsOneWidget);
     },
   );
 }

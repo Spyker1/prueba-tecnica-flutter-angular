@@ -2,6 +2,7 @@ import 'package:flutter_app/features/cart/presentation/providers/cart_notifier.d
 import 'package:flutter_app/features/products/domain/product.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   const productA = Product(
@@ -208,6 +209,33 @@ void main() {
         // Debe acotar la cantidad al stock máximo disponible (15) y no 20
         expect(container.read(cartProvider).first.quantity, 15);
         expect(container.read(cartTotalProvider), 15 * 45.0);
+      },
+    );
+
+    test(
+      'Test 6: Persistencia local con SharedPreferences guarda y recupera el carrito',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final container1 = ProviderContainer();
+        final notifier1 = container1.read(cartProvider.notifier);
+
+        notifier1.addItem(productA);
+        notifier1.addItem(productA);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        container1.dispose();
+
+        // En un nuevo contenedor (simula reinicio de la app)
+        final container2 = ProviderContainer();
+        addTearDown(container2.dispose);
+
+        container2.read(cartProvider);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        final restoredCart = container2.read(cartProvider);
+        expect(restoredCart.length, 1);
+        expect(restoredCart.first.product.id, productA.id);
+        expect(restoredCart.first.quantity, 2);
+        expect(container2.read(cartTotalProvider), 160.0);
       },
     );
   });

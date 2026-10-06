@@ -87,6 +87,8 @@ class _ProductDetailContent extends ConsumerWidget {
     final isOutOfStock = product.stock <= 0;
     final isMaxStockReached = currentQuantity >= product.stock;
     final canAddToCart = !isOutOfStock && !isMaxStockReached;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Column(
       children: [
@@ -95,33 +97,46 @@ class _ProductDetailContent extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Imagen envuelta en Card elevada con fondo sutil
+                // Imagen envuelta en Card con fondo sutil dependiente del tema
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Card(
-                    elevation: 2,
-                    shadowColor: Colors.black.withOpacity(0.06),
+                    elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      side: BorderSide(
+                        color: colorScheme.outlineVariant.withOpacity(0.5),
+                      ),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: Container(
                       width: double.infinity,
                       height: 280,
-                      color: const Color(0xFFF8FAFC),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest
+                            .withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       alignment: Alignment.center,
                       padding: const EdgeInsets.all(16),
                       child: Image.network(
                         product.thumbnail,
                         fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        },
                         errorBuilder: (context, error, stackTrace) =>
-                            const Center(
-                          child: Icon(
-                            Icons.image_not_supported_outlined,
-                            size: 64,
-                            color: Color(0xFF94A3B8),
-                          ),
+                            Icon(
+                          Icons.broken_image,
+                          size: 48,
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -145,17 +160,19 @@ class _ProductDetailContent extends ConsumerWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEEF2FF),
+                                color: colorScheme.primaryContainer
+                                    .withOpacity(0.4),
                                 borderRadius: BorderRadius.circular(20),
-                                border:
-                                    Border.all(color: const Color(0xFFC7D2FE)),
+                                border: Border.all(
+                                  color: colorScheme.primary.withOpacity(0.3),
+                                ),
                               ),
                               child: Text(
                                 product.category.toUpperCase(),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF4F46E5),
+                                  color: colorScheme.primary,
                                   letterSpacing: 0.6,
                                 ),
                               ),
@@ -193,21 +210,18 @@ class _ProductDetailContent extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      // Título con jerarquía headlineMedium en negrita grande
+                      // Título con jerarquía headlineMedium dependiente del tema
                       Text(
                         product.title,
-                        style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF0F172A),
-                                  letterSpacing: -0.5,
-                                ) ??
-                            const TextStyle(
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: colorScheme.onSurface,
+                              letterSpacing: -0.5,
+                            ) ??
+                            TextStyle(
                               fontSize: 26,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
+                              color: colorScheme.onSurface,
                               letterSpacing: -0.5,
                             ),
                       ),
@@ -215,41 +229,41 @@ class _ProductDetailContent extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(
                           'Marca: ${product.brand}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
-                            color: Color(0xFF64748B),
+                            color: colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                       const SizedBox(height: 16),
-                      // Precio destacado
+                      // Precio destacado con color primary
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
                           Text(
                             '\$${product.price.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
+                              color: colorScheme.primary,
                               letterSpacing: -0.8,
                             ),
                           ),
                           const SizedBox(width: 8),
-                          const Text(
+                          Text(
                             'USD',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
+                              color: colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
-                      // Badge de stock dinámico (verde si disponible, rojo si agotado)
+                      // Badge de stock dinámico
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -257,8 +271,8 @@ class _ProductDetailContent extends ConsumerWidget {
                         ),
                         decoration: BoxDecoration(
                           color: product.stock > 0
-                              ? const Color(0xFFDCFCE7)
-                              : const Color(0xFFFEE2E2),
+                              ? const Color(0xFFDCFCE7).withOpacity(0.9)
+                              : const Color(0xFFFEE2E2).withOpacity(0.9),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: product.stock > 0
@@ -300,7 +314,7 @@ class _ProductDetailContent extends ConsumerWidget {
                                   fontWeight: FontWeight.w600,
                                   color: isMaxStockReached
                                       ? const Color(0xFFB91C1C)
-                                      : const Color(0xFF475569),
+                                      : colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -308,20 +322,20 @@ class _ProductDetailContent extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      const Text(
+                      Text(
                         'Descripción del producto',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         product.description,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF475569),
+                          color: colorScheme.onSurfaceVariant,
                           height: 1.6,
                         ),
                       ),
@@ -333,13 +347,15 @@ class _ProductDetailContent extends ConsumerWidget {
             ),
           ),
         ),
-        // Botón inferior fijo a ancho completo estilo FilledButton
+        // Botón inferior fijo con fondo dinámico del tema
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: const Border(
-              top: BorderSide(color: Color(0xFFE2E8F0)),
+            color: colorScheme.surface,
+            border: Border(
+              top: BorderSide(
+                color: colorScheme.outlineVariant.withOpacity(0.5),
+              ),
             ),
             boxShadow: [
               BoxShadow(

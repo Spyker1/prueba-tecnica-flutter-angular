@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_app/core/theme/theme_provider.dart';
 import 'package:flutter_app/features/cart/presentation/providers/cart_notifier.dart';
 import 'package:flutter_app/features/products/domain/product.dart';
 import 'package:flutter_app/features/products/presentation/providers/products_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Pantalla principal que exhibe el catálogo de productos con búsqueda debounced y carrito.
+/// Pantalla principal que exhibe el catálogo de productos con búsqueda debounced,
+/// filtros por categoría, selección de tema y carrito.
 class ProductsScreen extends ConsumerWidget {
   const ProductsScreen({super.key});
 
@@ -13,11 +15,25 @@ class ProductsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final productsAsync = ref.watch(searchResultsProvider);
     final totalCartCount = ref.watch(cartCountProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Catálogo de Productos'),
         actions: [
+          IconButton(
+            tooltip: themeMode == ThemeMode.light
+                ? 'Activar modo oscuro'
+                : 'Activar modo claro',
+            icon: Icon(
+              themeMode == ThemeMode.light
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
+            ),
+            onPressed: () {
+              ref.read(themeModeProvider.notifier).toggleTheme();
+            },
+          ),
           IconButton(
             tooltip: 'Ver Carrito de Compras',
             icon: Badge.count(
@@ -33,6 +49,8 @@ class ProductsScreen extends ConsumerWidget {
       body: Column(
         children: [
           const _SearchBarSection(),
+          const _CategoryFilterSection(),
+          const SizedBox(height: 4),
           Expanded(
             child: productsAsync.when(
               data: (products) {
@@ -43,6 +61,7 @@ class ProductsScreen extends ConsumerWidget {
                   onRefresh: () async {
                     ref.invalidate(searchResultsProvider);
                     ref.invalidate(productsProvider);
+                    ref.invalidate(categoriesProvider);
                   },
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
@@ -67,6 +86,7 @@ class ProductsScreen extends ConsumerWidget {
                 onRetry: () {
                   ref.invalidate(searchResultsProvider);
                   ref.invalidate(productsProvider);
+                  ref.invalidate(categoriesProvider);
                 },
               ),
             ),
@@ -77,37 +97,107 @@ class ProductsScreen extends ConsumerWidget {
   }
 }
 
+class _CategoryFilterSection extends ConsumerWidget {
+  const _CategoryFilterSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categoriesAsync = ref.watch(categoriesProvider);
+    final selectedCategory = ref.watch(selectedCategoryProvider);
+
+    return categoriesAsync.when(
+      data: (categories) {
+        if (categories.isEmpty) return const SizedBox.shrink();
+
+        return SizedBox(
+          height: 46,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            itemCount: categories.length + 1,
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                final isSelected = selectedCategory == null;
+                return FilterChip(
+                  label: const Text('Todas'),
+                  selected: isSelected,
+                  showCheckmark: false,
+                  onSelected: (_) {
+                    ref.read(selectedCategoryProvider.notifier).state = null;
+                  },
+                );
+              }
+
+              final category = categories[index - 1];
+              final isSelected = selectedCategory == category;
+              return FilterChip(
+                label: Text(
+                  category.isNotEmpty
+                      ? category[0].toUpperCase() + category.substring(1)
+                      : category,
+                ),
+                selected: isSelected,
+                showCheckmark: false,
+                onSelected: (selected) {
+                  ref.read(selectedCategoryProvider.notifier).state =
+                      selected ? category : null;
+                },
+              );
+            },
+          ),
+        );
+      },
+      loading: () => const SizedBox(height: 46),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
 class _SearchBarSection extends ConsumerWidget {
   const _SearchBarSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final query = ref.watch(searchQueryProvider);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
+        style: TextStyle(color: colorScheme.onSurface),
         decoration: InputDecoration(
           hintText: 'Buscar productos (DummyJSON)...',
-          prefixIcon: const Icon(Icons.search),
+          hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
+          prefixIcon: Icon(Icons.search, color: colorScheme.onSurfaceVariant),
           suffixIcon: query.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: Icon(Icons.clear, color: colorScheme.onSurfaceVariant),
                   onPressed: () {
                     ref.read(searchQueryProvider.notifier).state = '';
                   },
                 )
               : null,
           filled: true,
-          fillColor: Colors.white,
+          fillColor: colorScheme.surfaceContainerHighest,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderSide: BorderSide.none,
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            borderSide: BorderSide(
+              color: colorScheme.outlineVariant.withOpacity(0.5),
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: colorScheme.primary,
+              width: 1.5,
+            ),
           ),
         ),
         onChanged: (value) {
@@ -131,6 +221,8 @@ class _ProductCard extends ConsumerWidget {
     final inCartQuantity = inCartItem?.quantity ?? 0;
     final isOutOfStock = product.stock <= 0;
     final isMaxStock = inCartQuantity >= product.stock;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -142,19 +234,30 @@ class _ProductCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: 90,
                   height: 90,
-                  color: const Color(0xFFF1F5F9),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.all(4),
                   child: Image.network(
                     product.thumbnail,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: Color(0xFF94A3B8),
-                      size: 32,
-                    ),
+                    fit: BoxFit.contain,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.broken_image, size: 32),
                   ),
                 ),
               ),
@@ -171,15 +274,15 @@ class _ProductCard extends ConsumerWidget {
                         ),
                         margin: const EdgeInsets.only(bottom: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
+                          color: colorScheme.primaryContainer.withOpacity(0.4),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           product.category.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF4F46E5),
+                            color: colorScheme.primary,
                             letterSpacing: 0.5,
                           ),
                         ),
@@ -188,10 +291,10 @@ class _ProductCard extends ConsumerWidget {
                       product.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -205,10 +308,10 @@ class _ProductCard extends ConsumerWidget {
                         const SizedBox(width: 4),
                         Text(
                           product.rating.toStringAsFixed(1),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF475569),
+                            color: colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -219,10 +322,10 @@ class _ProductCard extends ConsumerWidget {
                       children: [
                         Text(
                           '\$${product.price.toStringAsFixed(2)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF0F172A),
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.primary,
                           ),
                         ),
                         FilledButton.tonalIcon(
@@ -314,22 +417,24 @@ class _EmptyProductsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.inventory_2_outlined,
             size: 64,
-            color: Color(0xFF94A3B8),
+            color: colorScheme.onSurfaceVariant,
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           Text(
             'No se encontraron productos coincidentes',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF475569),
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -349,6 +454,8 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -364,9 +471,9 @@ class _ErrorView extends StatelessWidget {
             Text(
               errorMessage,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
-                color: Color(0xFF334155),
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),

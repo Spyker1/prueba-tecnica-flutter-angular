@@ -1,11 +1,47 @@
+import 'dart:convert';
 import 'package:flutter_app/features/cart/domain/cart_item.dart';
 import 'package:flutter_app/features/products/domain/product.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Notifier que gestiona de manera estrictamente inmutable el estado de los elementos del carrito.
+/// Notifier que gestiona de manera estrictamente inmutable y persistente
+/// el estado de los elementos del carrito de compras.
 class CartNotifier extends Notifier<List<CartItem>> {
+  static const String _storageKey = 'cached_cart_items';
+
   @override
-  List<CartItem> build() => const [];
+  List<CartItem> build() {
+    _loadFromPreferences();
+    return const [];
+  }
+
+  /// Carga asíncronamente los elementos persistidos en SharedPreferences.
+  Future<void> _loadFromPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_storageKey);
+      if (jsonString != null && jsonString.isNotEmpty) {
+        final List<dynamic> decoded = jsonDecode(jsonString) as List<dynamic>;
+        final items = decoded
+            .map((item) => CartItem.fromJson(item as Map<String, dynamic>))
+            .toList();
+        state = List.unmodifiable(items);
+      }
+    } catch (_) {
+      // Manejo resiliente si el storage local no está disponible
+    }
+  }
+
+  /// Guarda el estado actual del carrito en SharedPreferences en formato JSON.
+  Future<void> _saveToPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = state.map((item) => item.toJson()).toList();
+      await prefs.setString(_storageKey, jsonEncode(jsonList));
+    } catch (_) {
+      // Manejo resiliente
+    }
+  }
 
   /// Agrega un producto al carrito o incrementa su cantidad si ya existe,
   /// validando estrictamente que nunca supere el stock disponible del producto.
@@ -27,11 +63,13 @@ class CartNotifier extends Notifier<List<CartItem>> {
       final updatedList = List<CartItem>.from(state);
       updatedList[index] = updatedItem;
       state = List.unmodifiable(updatedList);
+      _saveToPreferences();
       return true;
     } else {
       state = List.unmodifiable(
         [...state, CartItem(product: product, quantity: 1)],
       );
+      _saveToPreferences();
       return true;
     }
   }
@@ -41,6 +79,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
     state = List.unmodifiable(
       state.where((item) => item.product.id != productId).toList(),
     );
+    _saveToPreferences();
   }
 
   /// Actualiza la cantidad de un ítem en el carrito validando que nunca
@@ -61,6 +100,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
           final updatedList = List<CartItem>.from(state);
           updatedList[index] = updatedItem;
           state = List.unmodifiable(updatedList);
+          _saveToPreferences();
         }
         return false;
       }
@@ -69,6 +109,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
       final updatedList = List<CartItem>.from(state);
       updatedList[index] = updatedItem;
       state = List.unmodifiable(updatedList);
+      _saveToPreferences();
       return true;
     }
     return false;
@@ -77,6 +118,7 @@ class CartNotifier extends Notifier<List<CartItem>> {
   /// Vacía por completo el carrito de compras.
   void clearCart() {
     state = const [];
+    _saveToPreferences();
   }
 }
 

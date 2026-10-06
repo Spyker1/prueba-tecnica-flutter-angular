@@ -106,12 +106,16 @@ class _CartItemTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isMaxStock = item.quantity >= item.product.stock;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        side: BorderSide(
+          color: colorScheme.outlineVariant.withOpacity(0.5),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -122,14 +126,28 @@ class _CartItemTile extends ConsumerWidget {
               child: Container(
                 width: 72,
                 height: 72,
-                color: const Color(0xFFF8FAFC),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 padding: const EdgeInsets.all(4),
                 child: Image.network(
                   item.product.thumbnail,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
-                    Icons.image_not_supported_outlined,
-                    color: Color(0xFF94A3B8),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.broken_image,
+                    size: 28,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -143,18 +161,18 @@ class _CartItemTile extends ConsumerWidget {
                     item.product.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
                   Text(
                     '\$${item.product.price.toStringAsFixed(2)} c/u',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF64748B),
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 5),
@@ -162,10 +180,10 @@ class _CartItemTile extends ConsumerWidget {
                     children: [
                       Text(
                         'Subtotal: \$${item.subtotal.toStringAsFixed(2)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF4F46E5),
+                          color: colorScheme.primary,
                         ),
                       ),
                       if (isMaxStock) ...[
@@ -198,9 +216,11 @@ class _CartItemTile extends ConsumerWidget {
             // Contenedor cápsula estilizada para botones + y -
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(
+                  color: colorScheme.outlineVariant.withOpacity(0.5),
+                ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               child: Row(
@@ -213,7 +233,7 @@ class _CartItemTile extends ConsumerWidget {
                     padding: EdgeInsets.zero,
                     iconSize: 18,
                     icon: const Icon(Icons.remove_rounded),
-                    color: const Color(0xFF475569),
+                    color: colorScheme.onSurfaceVariant,
                     onPressed: () {
                       ref.read(cartProvider.notifier).updateQuantity(
                             item.product.id,
@@ -225,10 +245,10 @@ class _CartItemTile extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 6),
                     child: Text(
                       '${item.quantity}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
+                        color: colorScheme.onSurface,
                       ),
                     ),
                   ),
@@ -242,8 +262,8 @@ class _CartItemTile extends ConsumerWidget {
                     iconSize: 18,
                     icon: const Icon(Icons.add_rounded),
                     color: isMaxStock
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF4F46E5),
+                        ? colorScheme.onSurfaceVariant.withOpacity(0.4)
+                        : colorScheme.primary,
                     onPressed: isMaxStock
                         ? null
                         : () {
@@ -295,33 +315,35 @@ class _EmptyCartView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.remove_shopping_cart_outlined,
               size: 72,
-              color: Color(0xFF94A3B8),
+              color: colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Tu carrito está vacío',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+                color: colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Explora nuestro catálogo y agrega tus productos favoritos.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Color(0xFF64748B),
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 20),
@@ -349,12 +371,16 @@ class _CartSummarySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final totalItems = ref.watch(cartCountProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        border: const Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+        color: colorScheme.surface,
+        border: Border(
+          top: BorderSide(
+            color: colorScheme.outlineVariant.withOpacity(0.5),
+            width: 1.5,
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -375,35 +401,35 @@ class _CartSummarySection extends ConsumerWidget {
               children: [
                 Text(
                   'Artículos ($totalItems)',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF64748B),
+                    color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 Text(
                   '\$${totalPrice.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF334155),
+                    color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'Costo de envío',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF64748B),
+                    color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                Text(
+                const Text(
                   'Gratis',
                   style: TextStyle(
                     fontSize: 14,
@@ -413,27 +439,30 @@ class _CartSummarySection extends ConsumerWidget {
                 ),
               ],
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
-              child: Divider(color: Color(0xFFE2E8F0), height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Divider(
+                color: colorScheme.outlineVariant.withOpacity(0.5),
+                height: 1,
+              ),
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Total a Pagar',
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A),
+                    color: colorScheme.onSurface,
                   ),
                 ),
                 Text(
                   '\$${totalPrice.toStringAsFixed(2)}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF4F46E5),
+                    color: colorScheme.primary,
                     letterSpacing: -0.5,
                   ),
                 ),

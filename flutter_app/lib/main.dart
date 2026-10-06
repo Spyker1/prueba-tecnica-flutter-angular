@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_app/core/theme/app_theme.dart';
+import 'package:flutter_app/core/theme/theme_provider.dart';
 import 'package:flutter_app/features/cart/presentation/cart_screen.dart';
 import 'package:flutter_app/features/products/presentation/product_detail_screen.dart';
 import 'package:flutter_app/features/products/presentation/products_screen.dart';
@@ -60,16 +61,20 @@ void main() {
   );
 }
 
-/// Widget raíz de la aplicación Flutter.
-class MyApp extends StatelessWidget {
+/// Widget raíz de la aplicación Flutter que escucha el modo de tema configurado.
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp.router(
       title: 'Mini Catálogo DummyJSON',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: _router,
     );
   }

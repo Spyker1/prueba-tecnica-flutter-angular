@@ -13,17 +13,33 @@ final productsProvider = FutureProvider.autoDispose<List<Product>>((ref) async {
 /// Provider para el término de búsqueda introducido en la interfaz.
 final searchQueryProvider = StateProvider.autoDispose<String>((ref) => '');
 
-/// Provider asíncrono con DEBOUNCE de 400 ms para consultar la búsqueda sin saturar la API.
+/// Provider que lista las categorías disponibles desde el repositorio.
+/// Consume GET /products/categories
+final categoriesProvider =
+    FutureProvider.autoDispose<List<String>>((ref) async {
+  final repository = ref.watch(productsRepositoryProvider);
+  return repository.getCategories();
+});
+
+/// Provider para la categoría actualmente seleccionada por el usuario (null = todas).
+final selectedCategoryProvider =
+    StateProvider.autoDispose<String?>((ref) => null);
+
+/// Provider asíncrono con DEBOUNCE de 400 ms para consultar la búsqueda y categoría sin saturar la API.
 ///
-/// - Si la búsqueda está vacía, retorna los productos base de [productsProvider].
-/// - Si el usuario sigue escribiendo antes de transcurrir 400 ms, Riverpod cancela
-///   la ejecución previa y reinicia el temporizador automáticamente.
+/// - Si no hay búsqueda por texto, expone la categoría seleccionada o el catálogo base.
+/// - Si el usuario busca texto, aplica debounce de 400 ms y filtra dentro de la categoría activa si aplica.
 final searchResultsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
   final query = ref.watch(searchQueryProvider).trim();
+  final selectedCategory = ref.watch(selectedCategoryProvider);
+  final repository = ref.watch(productsRepositoryProvider);
 
-  // Si no hay consulta, expone el catálogo base
+  // Si no hay búsqueda de texto
   if (query.isEmpty) {
+    if (selectedCategory != null && selectedCategory.isNotEmpty) {
+      return repository.getProductsByCategory(selectedCategory);
+    }
     return ref.watch(productsProvider.future);
   }
 
@@ -41,8 +57,15 @@ final searchResultsProvider =
     return Completer<List<Product>>().future;
   }
 
-  final repository = ref.watch(productsRepositoryProvider);
-  return repository.searchProducts(query);
+  final results = await repository.searchProducts(query);
+  if (selectedCategory != null && selectedCategory.isNotEmpty) {
+    return results
+        .where(
+          (p) => p.category.toLowerCase() == selectedCategory.toLowerCase(),
+        )
+        .toList();
+  }
+  return results;
 });
 
 /// Provider para consultar el detalle de un producto mediante su identificador.
