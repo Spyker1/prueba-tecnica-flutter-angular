@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_app/core/error/failures.dart';
 import 'package:flutter_app/core/network/http_client_provider.dart';
+import 'package:flutter_app/features/products/domain/paginated_products_response.dart';
 import 'package:flutter_app/features/products/domain/product.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -13,9 +14,12 @@ class ProductsRepository {
 
   ProductsRepository({required http.Client client}) : _client = client;
 
-  /// Obtiene un listado paginado de productos.
+  /// Obtiene un listado paginado de productos y el total disponible.
   /// Endpoint: GET /products?limit={limit}&skip={skip}
-  Future<List<Product>> getProducts({int limit = 20, int skip = 0}) async {
+  Future<PaginatedProductsResponse> getProducts({
+    int limit = 20,
+    int skip = 0,
+  }) async {
     try {
       final uri = Uri.parse('$_baseUrl/products?limit=$limit&skip=$skip');
       final response = await _client.get(uri);
@@ -23,10 +27,7 @@ class ProductsRepository {
       if (response.statusCode == 200) {
         final Map<String, dynamic> data =
             jsonDecode(response.body) as Map<String, dynamic>;
-        final List<dynamic> productsList = data['products'] as List<dynamic>;
-        return productsList
-            .map((item) => Product.fromJson(item as Map<String, dynamic>))
-            .toList();
+        return PaginatedProductsResponse.fromJson(data);
       } else {
         throw ServerFailure(
           'Error al cargar productos desde el servidor',
@@ -42,21 +43,23 @@ class ProductsRepository {
     }
   }
 
-  /// Busca productos por texto de consulta.
-  /// Endpoint: GET /products/search?q={query}
-  Future<List<Product>> searchProducts(String query) async {
+  /// Busca productos por texto de consulta con paginación.
+  /// Endpoint: GET /products/search?q={query}&limit={limit}&skip={skip}
+  Future<PaginatedProductsResponse> searchProducts(
+    String query, {
+    int limit = 20,
+    int skip = 0,
+  }) async {
     try {
-      final uri =
-          Uri.parse('$_baseUrl/products/search?q=${Uri.encodeComponent(query)}');
+      final uri = Uri.parse(
+        '$_baseUrl/products/search?q=${Uri.encodeComponent(query)}&limit=$limit&skip=$skip',
+      );
       final response = await _client.get(uri);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data =
             jsonDecode(response.body) as Map<String, dynamic>;
-        final List<dynamic> productsList = data['products'] as List<dynamic>;
-        return productsList
-            .map((item) => Product.fromJson(item as Map<String, dynamic>))
-            .toList();
+        return PaginatedProductsResponse.fromJson(data);
       } else {
         throw ServerFailure(
           'Error al buscar productos',
@@ -140,22 +143,23 @@ class ProductsRepository {
     }
   }
 
-  /// Obtiene productos pertenecientes a una categoría específica.
-  /// Endpoint: GET /products/category/{category}
-  Future<List<Product>> getProductsByCategory(String category) async {
+  /// Obtiene productos pertenecientes a una categoría específica con soporte de paginación.
+  /// Endpoint: GET /products/category/{category}?limit={limit}&skip={skip}
+  Future<PaginatedProductsResponse> getProductsByCategory(
+    String category, {
+    int limit = 20,
+    int skip = 0,
+  }) async {
     try {
       final uri = Uri.parse(
-        '$_baseUrl/products/category/${Uri.encodeComponent(category)}',
+        '$_baseUrl/products/category/${Uri.encodeComponent(category)}?limit=$limit&skip=$skip',
       );
       final response = await _client.get(uri);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data =
             jsonDecode(response.body) as Map<String, dynamic>;
-        final List<dynamic> productsList = data['products'] as List<dynamic>;
-        return productsList
-            .map((item) => Product.fromJson(item as Map<String, dynamic>))
-            .toList();
+        return PaginatedProductsResponse.fromJson(data);
       } else {
         throw ServerFailure(
           'Error al obtener productos por categoría',

@@ -6,14 +6,40 @@ import 'package:flutter_app/features/products/presentation/providers/products_pr
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-/// Pantalla principal que exhibe el catálogo de productos con búsqueda debounced,
-/// filtros por categoría, selección de tema y carrito.
-class ProductsScreen extends ConsumerWidget {
+/// Pantalla principal que exhibe el catálogo de productos con paginación infinita,
+/// búsqueda debounced, filtros por categoría, selección de tema y carrito.
+class ProductsScreen extends ConsumerStatefulWidget {
   const ProductsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final productsAsync = ref.watch(searchResultsProvider);
+  ConsumerState<ProductsScreen> createState() => _ProductsScreenState();
+}
+
+class _ProductsScreenState extends ConsumerState<ProductsScreen> {
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients &&
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 250) {
+        ref.read(paginatedProductsProvider.notifier).fetchNextPage();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final productsAsync = ref.watch(paginatedProductsProvider);
     final totalCartCount = ref.watch(cartCountProvider);
     final themeMode = ref.watch(themeModeProvider);
 
@@ -57,23 +83,35 @@ class ProductsScreen extends ConsumerWidget {
                 if (products.isEmpty) {
                   return const _EmptyProductsView();
                 }
+                final hasMore =
+                    ref.watch(paginatedProductsProvider.notifier).hasMore;
+
                 return RefreshIndicator(
                   onRefresh: () async {
-                    ref.invalidate(searchResultsProvider);
-                    ref.invalidate(productsProvider);
+                    ref.invalidate(paginatedProductsProvider);
                     ref.invalidate(categoriesProvider);
                   },
-                  child: ListView.separated(
+                  child: ListView.builder(
+                    controller: _scrollController,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
-                    itemCount: products.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12),
+                    itemCount: products.length + (hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
+                      if (index == products.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                        );
+                      }
                       final product = products[index];
-                      return _ProductCard(product: product);
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ProductCard(product: product),
+                      );
                     },
                   ),
                 );
@@ -84,8 +122,7 @@ class ProductsScreen extends ConsumerWidget {
               error: (error, stackTrace) => _ErrorView(
                 errorMessage: error.toString(),
                 onRetry: () {
-                  ref.invalidate(searchResultsProvider);
-                  ref.invalidate(productsProvider);
+                  ref.invalidate(paginatedProductsProvider);
                   ref.invalidate(categoriesProvider);
                 },
               ),

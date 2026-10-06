@@ -10,10 +10,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:flutter_app/features/products/domain/paginated_products_response.dart';
+
 /// Repositorio simulado (Fake) para pruebas de widgets sin acceso a red.
 class FakeProductsRepository extends ProductsRepository {
   final List<Product> fakeProducts;
-  final Completer<List<Product>>? loadingCompleter;
+  final Completer<PaginatedProductsResponse>? loadingCompleter;
 
   FakeProductsRepository({
     this.fakeProducts = const [],
@@ -21,18 +23,38 @@ class FakeProductsRepository extends ProductsRepository {
   }) : super(client: http.Client());
 
   @override
-  Future<List<Product>> getProducts({int limit = 20, int skip = 0}) async {
+  Future<PaginatedProductsResponse> getProducts({
+    int limit = 20,
+    int skip = 0,
+  }) async {
     if (loadingCompleter != null) {
       return loadingCompleter!.future;
     }
-    return fakeProducts;
+    final paged = fakeProducts.skip(skip).take(limit).toList();
+    return PaginatedProductsResponse(
+      products: paged,
+      total: fakeProducts.length,
+      skip: skip,
+      limit: limit,
+    );
   }
 
   @override
-  Future<List<Product>> searchProducts(String query) async {
-    return fakeProducts
+  Future<PaginatedProductsResponse> searchProducts(
+    String query, {
+    int limit = 20,
+    int skip = 0,
+  }) async {
+    final filtered = fakeProducts
         .where((p) => p.title.toLowerCase().contains(query.toLowerCase()))
         .toList();
+    final paged = filtered.skip(skip).take(limit).toList();
+    return PaginatedProductsResponse(
+      products: paged,
+      total: filtered.length,
+      skip: skip,
+      limit: limit,
+    );
   }
 
   @override
@@ -46,10 +68,21 @@ class FakeProductsRepository extends ProductsRepository {
   }
 
   @override
-  Future<List<Product>> getProductsByCategory(String category) async {
-    return fakeProducts
+  Future<PaginatedProductsResponse> getProductsByCategory(
+    String category, {
+    int limit = 20,
+    int skip = 0,
+  }) async {
+    final filtered = fakeProducts
         .where((p) => p.category.toLowerCase() == category.toLowerCase())
         .toList();
+    final paged = filtered.skip(skip).take(limit).toList();
+    return PaginatedProductsResponse(
+      products: paged,
+      total: filtered.length,
+      skip: skip,
+      limit: limit,
+    );
   }
 }
 
@@ -166,7 +199,7 @@ void main() {
   testWidgets(
     'ProductsScreen muestra CircularProgressIndicator mientras carga y lista los productos al resolver',
     (WidgetTester tester) async {
-      final completer = Completer<List<Product>>();
+      final completer = Completer<PaginatedProductsResponse>();
       final fakeRepository = FakeProductsRepository(
         loadingCompleter: completer,
         fakeProducts: testProducts,
@@ -180,7 +213,12 @@ void main() {
       expect(find.text('Laptop Ultradelgada'), findsNothing);
 
       // 2. Resuelve la petición asíncrona de datos
-      completer.complete(testProducts);
+      completer.complete(
+        PaginatedProductsResponse(
+          products: testProducts,
+          total: testProducts.length,
+        ),
+      );
       await tester.pumpAndSettle();
 
       // 3. Comprueba que el indicador de carga desaparece y se muestran los productos en la lista
@@ -241,6 +279,50 @@ void main() {
 
       expect(find.text('Laptop Ultradelgada'), findsOneWidget);
       expect(find.text('Teclado Mecánico RGB'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'ProductsScreen carga la siguiente página al hacer scroll hacia el final',
+    (WidgetTester tester) async {
+      final manyProducts = List.generate(
+        25,
+        (i) => Product(
+          id: i + 1,
+          title: 'Producto $i',
+          description: 'Desc $i',
+          price: 10.0 + i,
+          rating: 4.5,
+          thumbnail: 'https://example.com/p$i.jpg',
+          category: 'general',
+          stock: 10,
+        ),
+      );
+
+      final fakeRepository = FakeProductsRepository(fakeProducts: manyProducts);
+      await tester.pumpWidget(buildTestableWidget(fakeRepository));
+      await tester.pumpAndSettle();
+
+      // Verifica que se cargaron los primeros 20 productos y hasMore está activo
+      expect(find.text('Producto 0'), findsOneWidget);
+      expect(find.text('Producto 19'), findsNothing); // Aún no en viewport
+
+      // Realiza scroll hacia abajo para activar el listener de scroll
+      final verticalListFinder = find.byWidgetPredicate(
+        (w) => w is ListView && w.scrollDirection == Axis.vertical,
+      );
+      await tester.scrollUntilVisible(
+        find.text('Producto 24'),
+        500,
+        scrollable: find.descendant(
+          of: verticalListFinder,
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tras el scroll y la carga de la página 2, Producto 24 es renderizado
+      expect(find.text('Producto 24'), findsOneWidget);
     },
   );
 }
