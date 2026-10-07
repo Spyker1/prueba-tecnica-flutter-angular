@@ -1,6 +1,6 @@
 # Prueba Técnica — Desarrollador Jr Flutter (Riverpod) + Angular
 
-Repositorio monorepo que contiene las soluciones prácticas y teóricas para la evaluación técnica de **Desarrollador Jr Flutter (Riverpod) + Angular**, consumiendo la API pública de [DummyJSON](https://dummyjson.com).
+Repositorio monorepo que contiene la solución integral para la prueba técnica de **Desarrollador Jr Flutter (Riverpod) + Angular**, consumiendo la API pública de [DummyJSON](https://dummyjson.com).
 
 ---
 
@@ -8,137 +8,167 @@ Repositorio monorepo que contiene las soluciones prácticas y teóricas para la 
 
 ```text
 prueba-tecnica-flutter-angular/
-├── flutter_app/                 # Aplicación móvil/web desarrollada en Flutter con Riverpod
-├── angular_app/                 # Panel de administración web desarrollado en Angular 17+
+├── flutter_app/                 # Aplicación Flutter con Riverpod (Catálogo, Búsqueda, Carrito)
+├── angular_app/                 # Dashboard web en Angular 17+ (Gestión y Detalle de Pedidos)
 ├── RESPUESTAS.md                # Respuestas teóricas (Parte 1) y Code Review (Parte 4)
-└── README.md                    # Documentación global y decisiones de arquitectura
+└── README.md                    # Documentación global, arquitectura y guía de ejecución
+```
+
+---
+
+## 1. Guía de Ejecución
+
+### Requisitos del Sistema
+* **Flutter SDK:** versión 3.19+ (canal stable).
+* **Node.js:** versión 18.x o 20.x y **npm** 9+.
+* **Navegador Web:** Google Chrome (recomendado para previsualización inmediata).
+
+---
+
+### A. Proyecto Flutter (`flutter_app/`)
+
+1. **Navegar a la carpeta:**
+   ```bash
+   cd flutter_app
+   ```
+
+2. **Descargar dependencias:**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Ejecutar la aplicación:**
+   * En **Google Chrome (Web):**
+     ```bash
+     flutter run -d chrome
+     ```
+   * En **Windows Desktop:**
+     ```bash
+     flutter run -d windows
+     ```
+   * En emulador Android o dispositivo físico:
+     ```bash
+     flutter run
+     ```
+
+4. **Correr pruebas automáticas:**
+   ```bash
+   flutter test
+   ```
+
+5. **Comprobar análisis estático:**
+   ```bash
+   flutter analyze
+   ```
+
+---
+
+### B. Proyecto Angular (`angular_app/`)
+
+1. **Navegar a la carpeta:**
+   ```bash
+   cd angular_app
+   ```
+
+2. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
+
+3. **Iniciar el servidor local:**
+   ```bash
+   npm start
+   ```
+   Abrir en el navegador: [http://localhost:4200](http://localhost:4200).
+
+4. **Correr pruebas unitarias:**
+   ```bash
+   npm test -- --watch=false
+   ```
+
+5. **Validar compilación en modo estricto:**
+   ```bash
+   npm run build
+   ```
+
+---
+
+## 2. Decisiones de Arquitectura y Buenas Prácticas
+
+### Flutter (`flutter_app/`)
+
+1. **Arquitectura por Capas Limpia (Feature-Driven):**
+   * **Capa de Dominio (`domain`):** Entidades inmutables (`Product`, `CartItem`) completamente desacopladas de frameworks y librerías externas.
+   * **Capa de Datos (`data`):** Repositorio `ProductsRepository` que aísla las peticiones HTTP (`http.Client`), maneja la deserialización y controla la paginación de la API.
+   * **Capa de Presentación (`presentation`):** Widgets modulares organizados por pantalla (`ProductsScreen`, `ProductDetailScreen`, `CartScreen`), orquestados por Notifiers y Providers de Riverpod.
+
+2. **Gestión de Estado Reactiva con Riverpod (2.x):**
+   * **Listado con Paginación Infinita:** Implementado con `AsyncNotifierProvider` (`PaginatedProductsNotifier`), controlando carga por lotes (`skip` y `limit`), estados de carga inicial, error con reintento (`ref.invalidate`) y spinner de scroll al pie.
+   * **Búsqueda Reactiva con Debounce:** Provista con un retardo de 400 ms para optimizar el consumo de red y evitar llamadas por pulsación de tecla.
+   * **Filtro por Categorías:** Consumo dinámico de `GET /products/categories` con chips horizontales interactivos.
+   * **Detalle con `.family`:** `productDetailProvider` parametrizado por el ID del producto.
+   * **Carrito Inmutable y Reactivo:** `NotifierProvider<CartNotifier, List<CartItem>>` con mutaciones puras (`state = [...]`), cálculo dinámico de total y contador global en `AppBar`.
+   * **Tema Dinámico Claro/Oscuro:** `themeModeProvider` que conmuta entre `ThemeMode.light` y `ThemeMode.dark` con contraste verificado en `ColorScheme`.
+
+3. **Validaciones de Negocio:**
+   * **Control de Stock Estricto:** Validación en el Notifier y deshabilitación de controles `+` cuando `item.quantity >= product.stock`.
+   * **Persistencia Local:** Carrito persistido con `shared_preferences` para conservar la compra tras recargas.
 
-1. Cómo Ejecutar Cada Proyecto
-Requisitos Previos
-Flutter SDK: versión 3.19+ (canal stable).
+4. **Justificación de Modelos Inmutables (`fromJson` manual):**
+   * Se eligió serialización manual inmutable con constructores factory `fromJson` y métodos `copyWith`.
+   * **Justificación:** Mantiene el proyecto ligero y sin dependencias pesadas de generación de código (`build_runner` / `freezed`), permitiendo a la vez validaciones de datos personalizadas en tiempo de parseo.
 
-Node.js: versión 18.x o 20.x y npm versión 9+.
+---
 
-Navegador Web: Google Chrome (recomendado para previsualización rápida).
+### Angular (`angular_app/`)
 
-A. Proyecto Flutter (flutter_app/)
+1. **Angular 17+ Moderno y Standalone:**
+   * Arquitectura moderna basada en componentes standalone (`standalone: true`), eliminando la sobrecarga de `NgModule`.
+   * TypeScript configurado en modo estricto (`"strict": true`) sin uso de `any`.
 
-Ingresar a la carpeta del proyecto:
+2. **Reactividad con Signals:**
+   * Estado del componente gestionado con `signal()` (`orders`, `loading`, `errorMessage`, `minTotalFilter`).
+   * Filtrado derivado síncrono y de alto rendimiento mediante `computed()`.
+   * Prevención estricta de fugas de memoria (*memory leaks*) mediante `takeUntilDestroyed()`.
 
-cd flutter_app
+3. **Patrón Contenedor y Presentacional:**
+   * **Contenedor (`OrdersPageComponent`):** Conecta con `OrdersService`, gestiona Signals y orquesta los eventos.
+   * **Presentacional (`OrderCardComponent`):** Componente puro con estrategia `ChangeDetectionStrategy.OnPush`, entrada tipada con `input()` y salida de eventos con `output()`.
 
-Instalar dependencias:
+4. **Deseables Implementados:**
+   * Nuevo Control Flow nativo (`@if`, `@for (order of filteredOrders(); track order.id)`).
+   * Pipe personalizado `DiscountPipe` (`discount`) para formato de descuentos y montos ahorrados.
+   * Ruta `/orders/:id` con *Lazy Loading* (`loadComponent`).
 
-flutter pub get
+---
 
-Ejecutar la aplicación:
+## 3. Paralelos Arquitectónicos: Flutter vs Angular
 
-En Google Chrome (Web):
+En ambos proyectos se aplicaron conceptos arquitectónicos equivalentes:
 
-flutter run -d chrome
+| Concepto Arquitectónico | Implementación en Flutter (Dart) | Implementación en Angular (TypeScript) |
+| :--- | :--- | :--- |
+| **Abstracción de Datos** | `ProductsRepository` inyectado vía Riverpod | `OrdersService` con `@Injectable({ providedIn: 'root' })` |
+| **Cliente de Red** | `http.Client` desacoplado | `HttpClient` provisto mediante `provideHttpClient()` |
+| **Estado Reactivo** | Providers de Riverpod (`Notifier`, `AsyncNotifier`) | Signals (`signal()`, `computed()`) |
+| **Componentes Puros** | `StatelessWidget` con propiedades `final` | Componente Standalone con `input()` y `OnPush` |
+| **Comunicación Hijo-Padre** | Callbacks tipados (`VoidCallback`, `Function(T)`) | Salidas tipadas con `output<T>()` |
+| **Limpieza de Recursos** | Modificador `autoDispose` de Riverpod | Operador `takeUntilDestroyed()` en inyección |
+| **Tipado Fuerte** | Clases inmutables con `fromJson` | Interfaces de TypeScript estrictas |
 
-Ejecutar pruebas automatizadas:
+---
 
-flutter test
+## 4. Qué Quedó Pendiente y Qué Mejoraría con Más Tiempo
 
-Verificar análisis estático:
+1. **Pruebas de Integración End-to-End (E2E):**
+   * En Flutter: Crear pruebas con `integration_test` o Patrol para validar el flujo completo *Búsqueda → Detalle → Carrito → Modificación de cantidad*.
+   * En Angular: Configurar pruebas E2E con Cypress o Playwright simulando la interacción administrativa.
 
-flutter analyze
+2. **Manejo de Errores con Tipo Result / Either:**
+   * Reemplazar las excepciones convencionales por una clase funcional tipada `Result<T, Failure>` (estilo `fpdart`), evitando bloques `try-catch` y forzando la evaluación exhaustiva de fallos en la capa de presentación.
 
-B. Proyecto Angular (angular_app/)
+3. **Virtual Scrolling en Angular:**
+   * Integrar `@angular/cdk/scrolling` para renderizado virtual eficiente en listas masivas de carritos.
 
-Ingresar a la carpeta del proyecto:
-
-cd angular_app
-
-Instalar dependencias:
-
-npm install
-
-Iniciar el servidor de desarrollo:
-
-npm start
-
-Abre tu navegador en: http://localhost:4200.
-
-Ejecutar pruebas unitarias:
-
-npm test -- --watch=false
-
-Verificar compilación estricta de TypeScript:
-
-npm run build
-
-----------------------------------------------------------------------------------------------------------------------
-
-2. Decisiones de Arquitectura
-
-Flutter (flutter_app/)
-
-1. Arquitectura por Capas (Feature-First):
-
-Capa de Dominio (domain): Entidades inmutables (Product, CartItem) libres de dependencias de frameworks y contratos de repositorio.
-
-Capa de Datos (data): Implementación concreta del repositorio (ProductsRepository), serialización y consumo de la API REST mediante cliente HTTP desacoplado.
-
-Capa de Presentación (presentation): Widgets modulares organizados por pantalla (ProductsScreen, ProductDetailScreen, CartScreen) y Notifiers/Providers de Riverpod.
-
-2. Gestión de Estado Exclusiva con Riverpod (2.x):
-
-productsProvider: FutureProvider.autoDispose para carga asíncrona desacoplada del ciclo de vida de los widgets.
-
-searchQueryProvider + searchResultsProvider: Búsqueda reactiva con debounce de 400 ms para optimizar el tráfico de red y evitar llamadas por cada pulsación de tecla.
-
-productDetailProvider: Provider .family parametrizado por el ID del producto.
-
-cartProvider: NotifierProvider<CartNotifier, List<CartItem>> con mutaciones puramente inmutables (state = [...]).
-
-Separación de accesos: ref.watch estrictamente dentro de métodos build y ref.read únicamente dentro de callbacks de eventos (onPressed, onTap).
-
-3. Justificación de Modelos Inmutables (fromJson manual):
-
-Se optó por serialización manual inmutable con constructores factory fromJson y métodos copyWith.
-
-Motivo: Mantiene el proyecto ligero y legible sin sobrecargar el flujo de trabajo con generación de código externa (build_runner / freezed), permitiendo a su vez validaciones de dominio personalizadas (como el control estricto del límite de stock por producto).
-
-4. Validaciones de Negocio y Persistencia:
-
-Control de stock estricto: El carrito impide agregar más unidades de las existentes en product.stock.
-
-Persistencia local con shared_preferences para conservar el carrito tras recargar la aplicación.
-
-Navegación declarativa mediante go_router.
-
-Angular (angular_app/)
-
-1. Angular 17+ Moderno y Standalone:
-
-Arquitectura sin módulos (standalone: true) que reduce boilerplate y optimiza el tree-shaking.
-
-TypeScript en modo estricto ("strict": true) sin uso de any.
-
-2. Reactividad con Signals y RxJS:
-
-Uso de signal() para el estado local del componente (orders, loading, errorMessage, minTotalFilter).
-
-Uso de computed() para filtros derivados reactivos en tiempo real.
-
-Uso de operadores RxJS (timer, switchMap, catchError) combinados con takeUntilDestroyed() para evitar fugas de memoria (memory leaks).
-
-3. Patrón Contenedor / Presentacional:
-
-Contenedor (OrdersPageComponent): Conecta con OrdersService, orquesta los Signals y gestiona los filtros.
-
-Presentacional (OrderCardComponent): Componente puro con estrategia ChangeDetectionStrategy.OnPush, recibe datos mediante input() y emite eventos mediante output().
-
-4. Diseño y Deseables:
-
-Control Flow nativo moderno (@if, @for con track).
-
-Pipe personalizado DiscountPipe para formateo visual de descuentos y ahorros.
-
-Ruta /orders/:id con Lazy Loading (loadComponent).
-
-3. Paralelos Arquitectónicos: Flutter vs Angular
-
-En ambos proyectos se aplicaron los mismos patrones de diseño y separación de responsabilidades:
+4. **Internacionalización (i18n):**
+   * Implementar soporte multiidioma con `flutter_localizations` y `@angular/localize`.
